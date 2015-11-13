@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import com.microsoft.azure.storage.AccessCondition;
 import com.microsoft.azure.storage.Constants;
 import com.microsoft.azure.storage.DoesServiceRequest;
 import com.microsoft.azure.storage.OperationContext;
+import com.microsoft.azure.storage.StorageCredentials;
 import com.microsoft.azure.storage.StorageException;
 import com.microsoft.azure.storage.StorageUri;
 import com.microsoft.azure.storage.core.Base64;
@@ -65,12 +67,7 @@ public final class CloudPageBlob extends CloudBlob {
      *             If a storage service error occurred.
      */
     public CloudPageBlob(final StorageUri blobAbsoluteUri) throws StorageException {
-        super(BlobType.PAGE_BLOB);
-
-        Utility.assertNotNull("blobAbsoluteUri", blobAbsoluteUri);
-        this.setStorageUri(blobAbsoluteUri);
-        this.parseURIQueryStringAndVerify(blobAbsoluteUri, null,
-                Utility.determinePathStyleFromUri(blobAbsoluteUri.getPrimaryUri()));;
+        this(blobAbsoluteUri, (StorageCredentials)null);
     }
 
     /**
@@ -82,111 +79,142 @@ public final class CloudPageBlob extends CloudBlob {
     public CloudPageBlob(final CloudPageBlob otherBlob) {
         super(otherBlob);
     }
-
+    
     /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI and cloud blob client.
+     * Creates an instance of the <code>CloudPageBlob</code> class using the specified absolute URI and credentials.
      * 
      * @param blobAbsoluteUri
-     *            A <code>java.net.URI</code> object which represents the absolute URI to the blob.
-     * @param client
-     *            A {@link CloudBlobClient} object that specifies the endpoint for the Blob service.
+     *            A <code>java.net.URI</code> object that represents the absolute URI to the blob.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
      * 
      * @throws StorageException
      *             If a storage service error occurred.
      */
-    public CloudPageBlob(final URI blobAbsoluteUri, final CloudBlobClient client) throws StorageException {
-        this(new StorageUri(blobAbsoluteUri), client);
+    public CloudPageBlob(final URI blobAbsoluteUri, final StorageCredentials credentials) throws StorageException {
+        this(new StorageUri(blobAbsoluteUri), credentials);
     }
 
     /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI and cloud blob client.
+     * Creates an instance of the <code>CloudPageBlob</code> class using the specified absolute URI, snapshot ID, and
+     * credentials.
      * 
      * @param blobAbsoluteUri
-     *            A {@link StorageUri} object which represents the absolute URI to the blob.
-     * @param client
-     *            A {@link CloudBlobClient} object that specifies the endpoint for the Blob service.
-     * 
-     * @throws StorageException
-     *             If a storage service error occurred.
-     */
-    public CloudPageBlob(final StorageUri blobAbsoluteUri, final CloudBlobClient client) throws StorageException {
-        super(BlobType.PAGE_BLOB, blobAbsoluteUri, client);
-    }
-
-    /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI, cloud blob client, and cloud
-     * blob container.
-     * 
-     * @param blobAbsoluteUri
-     *            A <code>java.net.URI</code> object which represents the absolute URI to the blob.
-     * @param client
-     *            A {@link CloudBlobClient} object that specifies the endpoint for the Blob service.
-     * @param container
-     *            A {@link CloudBlobContainer} object which represents the container to use for the blob.
-     * 
-     * @throws StorageException
-     *             If a storage service error occurred.
-     */
-    public CloudPageBlob(final URI blobAbsoluteUri, final CloudBlobClient client, final CloudBlobContainer container)
-            throws StorageException {
-        this(new StorageUri(blobAbsoluteUri), client, container);
-    }
-
-    /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI, cloud blob client, and cloud
-     * blob container.
-     * 
-     * @param blobAbsoluteUri
-     *            A {@link StorageUri} object which represents the absolute URI to the blob.
-     * @param client
-     *            A {@link CloudBlobClient} object that specifies the endpoint for the Blob service.
-     * @param container
-     *            A {@link CloudBlobContainer} object which represents the container to use for the blob.
-     * 
-     * @throws StorageException
-     *             If a storage service error occurred.
-     */
-    public CloudPageBlob(final StorageUri blobAbsoluteUri, final CloudBlobClient client,
-            final CloudBlobContainer container) throws StorageException {
-        super(BlobType.PAGE_BLOB, blobAbsoluteUri, client, container);
-    }
-
-    /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI, snapshot ID, and cloud blob
-     * client.
-     * 
-     * @param blobAbsoluteUri
-     *            A <code>java.net.URI</code> object which represents the absolute URI to the blob.
+     *            A <code>java.net.URI</code> object that represents the absolute URI to the blob.
      * @param snapshotID
-     *            A <code>String</code> which represents the snapshot version, if applicable.
-     * @param client
-     *            A {@link CloudBlobContainer} object which represents the container to use for the blob.
+     *            A <code>String</code> that represents the snapshot version, if applicable.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
+     * @throws StorageException
+     *             If a storage service error occurred.
+     */
+    public CloudPageBlob(final URI blobAbsoluteUri, final String snapshotID, final StorageCredentials credentials)
+            throws StorageException {
+        this(new StorageUri(blobAbsoluteUri), snapshotID, credentials);
+    }
+    
+    /**
+     * Creates an instance of the <code>CloudPageBlob</code> class using the specified absolute StorageUri and credentials.
+     * 
+     * @param blobAbsoluteUri
+     *            A {@link StorageUri} object that represents the absolute URI to the blob.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
      * 
      * @throws StorageException
      *             If a storage service error occurred.
      */
-    public CloudPageBlob(final URI blobAbsoluteUri, final String snapshotID, final CloudBlobClient client)
-            throws StorageException {
-        this(new StorageUri(blobAbsoluteUri), snapshotID, client);
+    public CloudPageBlob(final StorageUri blobAbsoluteUri, final StorageCredentials credentials) throws StorageException {
+        this(blobAbsoluteUri, null /* snapshotID */, credentials);
     }
 
     /**
-     * Creates an instance of the <code>CloudPageBlob</code> class using the specified URI, snapshot ID, and cloud blob
-     * client.
+     * Creates an instance of the <code>CloudPageBlob</code> class using the specified absolute StorageUri, snapshot
+     * ID, and credentials.
      * 
      * @param blobAbsoluteUri
-     *            A {@link StorageUri} object which represents the absolute URI to the blob.
+     *            A {@link StorageUri} object that represents the absolute URI to the blob.
      * @param snapshotID
-     *            A <code>String</code> which represents the snapshot version, if applicable.
-     * @param client
-     *            A {@link CloudBlobContainer} object which represents the container to use for the blob.
-     * 
+     *            A <code>String</code> that represents the snapshot version, if applicable.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
      * @throws StorageException
      *             If a storage service error occurred.
      */
-    public CloudPageBlob(final StorageUri blobAbsoluteUri, final String snapshotID, final CloudBlobClient client)
+    public CloudPageBlob(final StorageUri blobAbsoluteUri, final String snapshotID, final StorageCredentials credentials)
             throws StorageException {
-        super(BlobType.PAGE_BLOB, blobAbsoluteUri, snapshotID, client);
+        super(BlobType.PAGE_BLOB, blobAbsoluteUri, snapshotID, credentials);
+    }
+    
+    /**
+     * Creates an instance of the <code>CloudPageBlob</code> class using the specified type, name, snapshot ID, and
+     * container.
+     *
+     * @param blobName
+     *            Name of the blob.
+     * @param snapshotID
+     *            A <code>String</code> that represents the snapshot version, if applicable.
+     * @param container
+     *            The reference to the parent container.
+     * @throws URISyntaxException
+     *             If the resource URI is invalid.
+     */
+    protected CloudPageBlob(String blobName, String snapshotID, CloudBlobContainer container)
+            throws URISyntaxException {
+        super(BlobType.PAGE_BLOB, blobName, snapshotID, container);
+    }
+    
+    /**
+     * Requests the service to start copying a blob's contents, properties, and metadata to a new blob.
+     *
+     * @param sourceBlob
+     *            A <code>CloudPageBlob</code> object that represents the source blob to copy.
+     *
+     * @return A <code>String</code> which represents the copy ID associated with the copy operation.
+     *
+     * @throws StorageException
+     *             If a storage service error occurred.
+     * @throws URISyntaxException
+     */
+    @DoesServiceRequest
+    public final String startCopy(final CloudPageBlob sourceBlob) throws StorageException, URISyntaxException {
+        return this.startCopy(sourceBlob, null /* sourceAccessCondition */,
+                null /* destinationAccessCondition */, null /* options */, null /* opContext */);
+    }
+
+    /**
+     * Requests the service to start copying a blob's contents, properties, and metadata to a new blob, using the
+     * specified access conditions, lease ID, request options, and operation context.
+     *
+     * @param sourceBlob
+     *            A <code>CloudPageBlob</code> object that represents the source blob to copy.
+     * @param sourceAccessCondition
+     *            An {@link AccessCondition} object that represents the access conditions for the source blob.
+     * @param destinationAccessCondition
+     *            An {@link AccessCondition} object that represents the access conditions for the destination blob.
+     * @param options
+     *            A {@link BlobRequestOptions} object that specifies any additional options for the request. Specifying
+     *            <code>null</code> will use the default request options from the associated service client (
+     *            {@link CloudBlobClient}).
+     * @param opContext
+     *            An {@link OperationContext} object that represents the context for the current operation. This object
+     *            is used to track requests to the storage service, and to provide additional runtime information about
+     *            the operation.
+     *
+     * @return A <code>String</code> which represents the copy ID associated with the copy operation.
+     *
+     * @throws StorageException
+     *             If a storage service error occurred.
+     * @throws URISyntaxException
+     *
+     */
+    @DoesServiceRequest
+    public final String startCopy(final CloudPageBlob sourceBlob, final AccessCondition sourceAccessCondition,
+            final AccessCondition destinationAccessCondition, BlobRequestOptions options, OperationContext opContext)
+            throws StorageException, URISyntaxException {
+        Utility.assertNotNull("sourceBlob", sourceBlob);
+        return this.startCopy(
+                sourceBlob.getQualifiedUri(), sourceAccessCondition, destinationAccessCondition, options, opContext);
     }
 
     /**
@@ -249,15 +277,16 @@ public final class CloudPageBlob extends CloudBlob {
             opContext = new OperationContext();
         }
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
         PageRange range = new PageRange(offset, offset + length - 1);
 
         this.putPagesInternal(range, PageOperationType.CLEAR, null, length, null, accessCondition, options, opContext);
     }
 
     /**
-     * Creates a page blob.
-     * 
+     * Creates a page blob. If the blob already exists, this will replace it. To instead throw an error if the blob 
+     * already exists, use the {@link #create(long, AccessCondition, BlobRequestOptions, OperationContext)}
+     * overload with {@link AccessCondition#generateIfNotExistsCondition()}.
      * @param length
      *            A <code>long</code> which represents the size, in bytes, of the page blob.
      * 
@@ -272,7 +301,9 @@ public final class CloudPageBlob extends CloudBlob {
     }
 
     /**
-     * Creates a page blob using the specified request options and operation context.
+     * Creates a page blob using the specified request options and operation context. If the blob already exists, 
+     * this will replace it. To instead throw an error if the blob already exists, use 
+     * {@link AccessCondition#generateIfNotExistsCondition()}.
      * 
      * @param length
      *            A <code>long</code> which represents the size, in bytes, of the page blob.
@@ -306,7 +337,7 @@ public final class CloudPageBlob extends CloudBlob {
             opContext = new OperationContext();
         }
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
 
         ExecutionEngine.executeWithRetry(this.blobServiceClient, this,
                 this.createImpl(length, accessCondition, options), options.getRetryPolicyFactory(), opContext);
@@ -332,7 +363,7 @@ public final class CloudPageBlob extends CloudBlob {
             @Override
             public void signRequest(HttpURLConnection connection, CloudBlobClient client, OperationContext context)
                     throws Exception {
-                StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, null);
+                StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, context);
             }
 
             @Override
@@ -344,6 +375,7 @@ public final class CloudPageBlob extends CloudBlob {
                 }
 
                 blob.updateEtagAndLastModifiedFromResponse(this.getConnection());
+                blob.getProperties().setLength(length);
                 return null;
             }
 
@@ -397,7 +429,7 @@ public final class CloudPageBlob extends CloudBlob {
             opContext = new OperationContext();
         }
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
 
         return ExecutionEngine.executeWithRetry(this.blobServiceClient, this,
                 this.downloadPageRangesImpl(accessCondition, options), options.getRetryPolicyFactory(), opContext);
@@ -423,7 +455,7 @@ public final class CloudPageBlob extends CloudBlob {
             @Override
             public void signRequest(HttpURLConnection connection, CloudBlobClient client, OperationContext context)
                     throws Exception {
-                StorageRequest.signBlobQueueAndFileRequest(connection, client, -1L, null);
+                StorageRequest.signBlobQueueAndFileRequest(connection, client, -1L, context);
             }
 
             @Override
@@ -452,7 +484,8 @@ public final class CloudPageBlob extends CloudBlob {
     }
 
     /**
-     * Opens an output stream object to write data to the page blob. The page blob must already exist.
+     * Opens an output stream object to write data to the page blob. The page blob must already exist and any existing 
+     * data may be overwritten.
      * 
      * @return A {@link BlobOutputStream} object used to write data to the blob.
      * 
@@ -467,7 +500,7 @@ public final class CloudPageBlob extends CloudBlob {
 
     /**
      * Opens an output stream object to write data to the page blob, using the specified lease ID, request options and
-     * operation context. The page blob must already exist.
+     * operation context. The page blob must already exist and any existing data may be overwritten.
      * 
      * @param accessCondition
      *            An {@link AccessCondition} object which represents the access conditions for the blob.
@@ -494,7 +527,11 @@ public final class CloudPageBlob extends CloudBlob {
 
     /**
      * Opens an output stream object to write data to the page blob. The page blob does not need to yet exist and will
-     * be created with the length specified.
+     * be created with the length specified. If the blob already exists on the service, it will be overwritten.
+     * <p>
+     * To avoid overwriting and instead throw an error, please use the 
+     * {@link #openWriteNew(long, AccessCondition, BlobRequestOptions, OperationContext)} overload with the appropriate 
+     * {@link AccessCondition}.
      * 
      * @param length
      *            A <code>long</code> which represents the length, in bytes, of the stream to create. This value must be
@@ -513,7 +550,11 @@ public final class CloudPageBlob extends CloudBlob {
 
     /**
      * Opens an output stream object to write data to the page blob, using the specified lease ID, request options and
-     * operation context. The page blob does not need to yet exist and will be created with the length specified.
+     * operation context. The page blob does not need to yet exist and will be created with the length specified.If the 
+     * blob already exists on the service, it will be overwritten.
+     * <p>
+     * To avoid overwriting and instead throw an error, please pass in an {@link AccessCondition} generated using 
+     * {@link AccessCondition#generateIfNotExistsCondition()}.
      * 
      * @param length
      *            A <code>long</code> which represents the length, in bytes, of the stream to create. This value must be
@@ -573,7 +614,8 @@ public final class CloudPageBlob extends CloudBlob {
 
         assertNoWriteOperationForSnapshot();
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient, false);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient, 
+                false /* setStartTime */);
 
         if (options.getStoreBlobContentMD5()) {
             throw new IllegalArgumentException(SR.BLOB_MD5_NOT_SUPPORTED_FOR_PAGE_BLOBS);
@@ -634,14 +676,14 @@ public final class CloudPageBlob extends CloudBlob {
                 options.getRetryPolicyFactory(), opContext);
     }
 
-    private StorageRequest<CloudBlobClient, CloudBlob, Void> putPagesImpl(final PageRange pageRange,
+    private StorageRequest<CloudBlobClient, CloudPageBlob, Void> putPagesImpl(final PageRange pageRange,
             final PageOperationType operationType, final byte[] data, final long length, final String md5,
             final AccessCondition accessCondition, final BlobRequestOptions options, final OperationContext opContext) {
-        final StorageRequest<CloudBlobClient, CloudBlob, Void> putRequest = new StorageRequest<CloudBlobClient, CloudBlob, Void>(
+        final StorageRequest<CloudBlobClient, CloudPageBlob, Void> putRequest = new StorageRequest<CloudBlobClient, CloudPageBlob, Void>(
                 options, this.getStorageUri()) {
 
             @Override
-            public HttpURLConnection buildRequest(CloudBlobClient client, CloudBlob blob, OperationContext context)
+            public HttpURLConnection buildRequest(CloudBlobClient client, CloudPageBlob blob, OperationContext context)
                     throws Exception {
                 if (operationType == PageOperationType.UPDATE) {
                     this.setSendStream(new ByteArrayInputStream(data));
@@ -653,7 +695,7 @@ public final class CloudPageBlob extends CloudBlob {
             }
 
             @Override
-            public void setHeaders(HttpURLConnection connection, CloudBlob blob, OperationContext context) {
+            public void setHeaders(HttpURLConnection connection, CloudPageBlob blob, OperationContext context) {
                 if (operationType == PageOperationType.UPDATE) {
                     if (options.getUseTransactionalContentMD5()) {
                         connection.setRequestProperty(Constants.HeaderConstants.CONTENT_MD5, md5);
@@ -665,15 +707,15 @@ public final class CloudPageBlob extends CloudBlob {
             public void signRequest(HttpURLConnection connection, CloudBlobClient client, OperationContext context)
                     throws Exception {
                 if (operationType == PageOperationType.UPDATE) {
-                    StorageRequest.signBlobQueueAndFileRequest(connection, client, length, null);
+                    StorageRequest.signBlobQueueAndFileRequest(connection, client, length, context);
                 }
                 else {
-                    StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, null);
+                    StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, context);
                 }
             }
 
             @Override
-            public Void preProcessResponse(CloudBlob blob, CloudBlobClient client, OperationContext context)
+            public Void preProcessResponse(CloudPageBlob blob, CloudBlobClient client, OperationContext context)
                     throws Exception {
                 if (this.getResult().getStatusCode() != HttpURLConnection.HTTP_CREATED) {
                     this.setNonExceptionedRetryableFailure(true);
@@ -681,11 +723,19 @@ public final class CloudPageBlob extends CloudBlob {
                 }
 
                 blob.updateEtagAndLastModifiedFromResponse(this.getConnection());
+                blob.updateSequenceNumberFromResponse(this.getConnection());
                 return null;
             }
         };
 
         return putRequest;
+    }
+    
+    protected void updateSequenceNumberFromResponse(HttpURLConnection request) {
+        final String sequenceNumber = request.getHeaderField(Constants.HeaderConstants.BLOB_SEQUENCE_NUMBER);
+        if (!Utility.isNullOrEmpty(sequenceNumber)) {
+            this.getProperties().setPageBlobSequenceNumber(Long.parseLong(sequenceNumber));
+        }
     }
 
     /**
@@ -733,19 +783,19 @@ public final class CloudPageBlob extends CloudBlob {
         }
 
         opContext.initialize();
-        options = BlobRequestOptions.applyDefaults(options, this.properties.getBlobType(), this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, this.properties.getBlobType(), this.blobServiceClient);
 
         ExecutionEngine.executeWithRetry(this.blobServiceClient, this, this.resizeImpl(size, accessCondition, options),
                 options.getRetryPolicyFactory(), opContext);
     }
 
-    private StorageRequest<CloudBlobClient, CloudBlob, Void> resizeImpl(final long size,
+    private StorageRequest<CloudBlobClient, CloudPageBlob, Void> resizeImpl(final long size,
             final AccessCondition accessCondition, final BlobRequestOptions options) {
-        final StorageRequest<CloudBlobClient, CloudBlob, Void> putRequest = new StorageRequest<CloudBlobClient, CloudBlob, Void>(
+        final StorageRequest<CloudBlobClient, CloudPageBlob, Void> putRequest = new StorageRequest<CloudBlobClient, CloudPageBlob, Void>(
                 options, this.getStorageUri()) {
 
             @Override
-            public HttpURLConnection buildRequest(CloudBlobClient client, CloudBlob blob, OperationContext context)
+            public HttpURLConnection buildRequest(CloudBlobClient client, CloudPageBlob blob, OperationContext context)
                     throws Exception {
                 return BlobRequest.resize(blob.getTransformedAddress(context).getUri(this.getCurrentLocation()),
                         options, context, accessCondition, size);
@@ -754,11 +804,11 @@ public final class CloudPageBlob extends CloudBlob {
             @Override
             public void signRequest(HttpURLConnection connection, CloudBlobClient client, OperationContext context)
                     throws Exception {
-                StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, null);
+                StorageRequest.signBlobQueueAndFileRequest(connection, client, 0L, context);
             }
 
             @Override
-            public Void preProcessResponse(CloudBlob blob, CloudBlobClient client, OperationContext context)
+            public Void preProcessResponse(CloudPageBlob blob, CloudBlobClient client, OperationContext context)
                     throws Exception {
                 if (this.getResult().getStatusCode() != HttpURLConnection.HTTP_OK) {
                     this.setNonExceptionedRetryableFailure(true);
@@ -767,6 +817,7 @@ public final class CloudPageBlob extends CloudBlob {
 
                 blob.getProperties().setLength(size);
                 blob.updateEtagAndLastModifiedFromResponse(this.getConnection());
+                blob.updateSequenceNumberFromResponse(this.getConnection());
                 return null;
             }
         };
@@ -775,10 +826,11 @@ public final class CloudPageBlob extends CloudBlob {
     }
 
     /**
-     * Uploads the source stream data to the page blob.
+     * Uploads the source stream data to the page blob. If the blob already exists on the service, it will be 
+     * overwritten.
      * 
      * @param sourceStream
-     *            An {@link IntputStream} object to read from.
+     *            An {@link InputStream} object to read from.
      * @param length
      *            A <code>long</code> which represents the length, in bytes, of the stream data, must be non zero and a
      *            multiple of 512.
@@ -796,10 +848,10 @@ public final class CloudPageBlob extends CloudBlob {
 
     /**
      * Uploads the source stream data to the page blob using the specified lease ID, request options, and operation
-     * context.
+     * context. If the blob already exists on the service, it will be overwritten.
      * 
      * @param sourceStream
-     *            An {@link IntputStream} object to read from.
+     *            An {@link InputStream} object to read from.
      * @param length
      *            A <code>long</code> which represents the length, in bytes, of the stream data. This must be great than
      *            zero and a multiple of 512.
@@ -829,7 +881,7 @@ public final class CloudPageBlob extends CloudBlob {
             opContext = new OperationContext();
         }
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
 
         if (length <= 0 || length % Constants.PAGE_SIZE != 0) {
             throw new IllegalArgumentException(SR.INVALID_PAGE_BLOB_LENGTH);
@@ -857,11 +909,10 @@ public final class CloudPageBlob extends CloudBlob {
      * Uploads a range of contiguous pages, up to 4 MB in size, at the specified offset in the page blob.
      * 
      * @param sourceStream
-     *            An {@link IntputStream} object which represents the input stream to write to the page blob.
+     *            An {@link InputStream} object which represents the input stream to write to the page blob.
      * @param offset
      *            A <code>long</code> which represents the offset, in number of bytes, at which to begin writing the
-     *            data. This value must be a multiple of
-     *            512.
+     *            data. This value must be a multiple of 512.
      * @param length
      *            A <code>long</code> which represents the length, in bytes, of the data to write. This value must be a
      *            multiple of 512.
@@ -884,7 +935,7 @@ public final class CloudPageBlob extends CloudBlob {
      * specified lease ID, request options, and operation context.
      * 
      * @param sourceStream
-     *            An {@link IntputStream} object which represents the input stream to write to the page blob.
+     *            An {@link InputStream} object which represents the input stream to write to the page blob.
      * @param offset
      *            A <code>long</code> which represents the offset, in number of bytes, at which to begin writing the
      *            data. This value must be a multiple of
@@ -933,7 +984,7 @@ public final class CloudPageBlob extends CloudBlob {
             opContext = new OperationContext();
         }
 
-        options = BlobRequestOptions.applyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
+        options = BlobRequestOptions.populateAndApplyDefaults(options, BlobType.PAGE_BLOB, this.blobServiceClient);
 
         final PageRange pageRange = new PageRange(offset, offset + length - 1);
         final byte[] data = new byte[(int) length];
@@ -965,7 +1016,7 @@ public final class CloudPageBlob extends CloudBlob {
     /**
      * Sets the number of bytes to buffer when writing to a {@link BlobOutputStream}.
      * 
-     * @param pageBlobStreamWriteSizeInBytes
+     * @param streamWriteSizeInBytes
      *            An <code>int</code> which represents the maximum number of bytes to buffer when writing to a page blob
      *            stream. This value must be a
      *            multiple of 512 and

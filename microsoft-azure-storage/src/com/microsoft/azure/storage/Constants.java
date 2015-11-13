@@ -114,6 +114,11 @@ public final class Constants {
         public static final String METRICS_HOUR_PRIMARY_TRANSACTIONS_BLOB = "$MetricsHourPrimaryTransactionsBlob";
 
         /**
+         * Constant for the file service primary location hourly metrics table.
+         */
+        public static final String METRICS_HOUR_PRIMARY_TRANSACTIONS_FILE = "$MetricsHourPrimaryTransactionsFile";
+
+        /**
          * Constant for the table service primary location hourly metrics table.
          */
         public static final String METRICS_HOUR_PRIMARY_TRANSACTIONS_TABLE = "$MetricsHourPrimaryTransactionsTable";
@@ -127,6 +132,11 @@ public final class Constants {
          * Constant for the blob service primary location minute metrics table.
          */
         public static final String METRICS_MINUTE_PRIMARY_TRANSACTIONS_BLOB = "$MetricsMinutePrimaryTransactionsBlob";
+
+        /**
+         * Constant for the file service primary location minute metrics table.
+         */
+        public static final String METRICS_MINUTE_PRIMARY_TRANSACTIONS_FILE = "$MetricsMinutePrimaryTransactionsFile";
 
         /**
          * Constant for the table service primary location minute metrics table.
@@ -144,6 +154,11 @@ public final class Constants {
         public static final String METRICS_HOUR_SECONDARY_TRANSACTIONS_BLOB = "$MetricsHourSecondaryTransactionsBlob";
 
         /**
+         * Constant for the file service secondary location hourly metrics table.
+         */
+        public static final String METRICS_HOUR_SECONDARY_TRANSACTIONS_FILE = "$MetricsHourSecondaryTransactionsFile";
+
+        /**
          * Constant for the table service secondary location hourly metrics table.
          */
         public static final String METRICS_HOUR_SECONDARY_TRANSACTIONS_TABLE = "$MetricsHourSecondaryTransactionsTable";
@@ -157,6 +172,11 @@ public final class Constants {
          * Constant for the blob service secondary location minute metrics table.
          */
         public static final String METRICS_MINUTE_SECONDARY_TRANSACTIONS_BLOB = "$MetricsMinuteSecondaryTransactionsBlob";
+
+        /**
+         * Constant for the file service secondary location minute metrics table.
+         */
+        public static final String METRICS_MINUTE_SECONDARY_TRANSACTIONS_FILE = "$MetricsMinuteSecondaryTransactionsFile";
 
         /**
          * Constant for the table service secondary location minute metrics table.
@@ -228,7 +248,22 @@ public final class Constants {
          * The format string for specifying ranges with only begin offset.
          */
         public static final String BEGIN_RANGE_HEADER_FORMAT = "bytes=%d-";
-
+        
+        /**
+         * The format string for specifying the blob append offset.
+         */
+        public static final String BLOB_APPEND_OFFSET = PREFIX_FOR_STORAGE_HEADER + "blob-append-offset";
+        
+        /**
+         * The header that specifies committed block count.
+         */
+        public static final String BLOB_COMMITTED_BLOCK_COUNT = PREFIX_FOR_STORAGE_HEADER + "blob-committed-block-count";
+        
+        /**
+         * The header that specifies blob sequence number.
+         */
+        public static final String BLOB_SEQUENCE_NUMBER = PREFIX_FOR_STORAGE_HEADER + "blob-sequence-number";
+        
         /**
          * The CacheControl header.
          */
@@ -346,9 +381,19 @@ public final class Constants {
         public static final int HTTP_UNUSED_306 = 306;
 
         /**
+         * The blob append position equal header.
+         */
+        public static final String IF_APPEND_POSITION_EQUAL_HEADER = PREFIX_FOR_STORAGE_HEADER + "blob-condition-appendpos";
+        
+        /**
          * The IfMatch header.
          */
         public static final String IF_MATCH = "If-Match";
+        
+        /**
+         * The blob maxsize condition header.
+         */
+        public static final String IF_MAX_SIZE_LESS_THAN_OR_EQUAL = PREFIX_FOR_STORAGE_HEADER + "blob-condition-maxsize";
 
         /**
          * The IfModifiedSince header.
@@ -364,7 +409,22 @@ public final class Constants {
          * The IfUnmodifiedSince header.
          */
         public static final String IF_UNMODIFIED_SINCE = "If-Unmodified-Since";
-
+        
+        /**
+         * The blob sequence number less than or equal condition header.
+         */
+        public static final String IF_SEQUENCE_NUMBER_LESS_THAN_OR_EQUAL = PREFIX_FOR_STORAGE_HEADER + "if-sequence-number-le";
+        
+        /**
+         * The blob sequence number less than condition header.
+         */
+        public static final String IF_SEQUENCE_NUMBER_LESS_THAN = PREFIX_FOR_STORAGE_HEADER + "if-sequence-number-lt";
+        
+        /**
+         * The blob sequence number equal condition header.
+         */
+        public static final String IF_SEQUENCE_NUMBER_EQUAL = PREFIX_FOR_STORAGE_HEADER + "if-sequence-number-eq";
+        
         /**
          * The header that specifies the lease action to perform
          */
@@ -490,7 +550,7 @@ public final class Constants {
         /**
          * The current storage version header value.
          */
-        public static final String TARGET_STORAGE_VERSION = "2014-02-14";
+        public static final String TARGET_STORAGE_VERSION = "2015-04-05";
 
         /**
          * The header that specifies the next visible time for a queue message.
@@ -510,7 +570,7 @@ public final class Constants {
         /**
          * Specifies the value to use for UserAgent header.
          */
-        public static final String USER_AGENT_VERSION = "2.0.0";
+        public static final String USER_AGENT_VERSION = "4.0.0";
 
         /**
          * The default type for content-type and accept
@@ -522,6 +582,10 @@ public final class Constants {
      * Defines constants for use with query strings.
      */
     public static class QueryConstants {
+        /**
+         * The query component for the api version.
+         */
+        public static final String API_VERSION = "api-version";
 
         /**
          * Query component for SAS cache control.
@@ -587,11 +651,6 @@ public final class Constants {
          * Query component for resource type.
          */
         public static final String RESOURCETYPE = "restype";
-        
-        /**
-         * The query component for the api version.
-         */
-        public static final String API_VERSION = "api-version";
 
         /**
          * The query component for the SAS table name.
@@ -614,6 +673,11 @@ public final class Constants {
         public static final String SIGNED_IDENTIFIER = "si";
 
         /**
+         * The query component for the signed SAS IP address.
+         */
+        public static final String SIGNED_IP = "sip";
+
+        /**
          * The query component for the signing SAS key.
          */
         public static final String SIGNED_KEY = "sk";
@@ -624,9 +688,24 @@ public final class Constants {
         public static final String SIGNED_PERMISSIONS = "sp";
 
         /**
+         * The query component for the signed SAS Internet protocols.
+         */
+        public static final String SIGNED_PROTOCOLS = "spr";
+
+        /**
          * The query component for the signed SAS resource.
          */
         public static final String SIGNED_RESOURCE = "sr";
+
+        /**
+         * The query component for the signed SAS resource type.
+         */
+        public static final String SIGNED_RESOURCE_TYPE = "srt";
+
+        /**
+         * The query component for the signed SAS service.
+         */
+        public static final String SIGNED_SERVICE = "ss";
 
         /**
          * The query component for the signed SAS start time.
@@ -652,6 +731,11 @@ public final class Constants {
          * The query component for the SAS start row key.
          */
         public static final String START_ROW_KEY = "srk";
+
+        /**
+         * The query component for stats.
+         */
+        public static final String STATS = "stats";
 
         /**
          * The query component for delimiter.
@@ -713,7 +797,7 @@ public final class Constants {
      * XML element for an access policy.
      */
     public static final String ACCESS_POLICY = "AccessPolicy";
-
+    
     /**
      * Buffer width used to copy data to output streams.
      */
@@ -749,6 +833,11 @@ public final class Constants {
      */
     public static final String COPY_STATUS_ELEMENT = "CopyStatus";
 
+    /**
+     * Default read timeout. 5 min * 60 seconds * 1000 ms
+     */
+    public static final int DEFAULT_READ_TIMEOUT = 5 * 60 * 1000;
+    
     /**
      * XML element for delimiters.
      */
@@ -860,6 +949,11 @@ public final class Constants {
     public static final String HTTPS = "https";
 
     /**
+     * Specifies both HTTPS and HTTP.
+     */
+    public static final String HTTPS_HTTP = "https,http";
+
+    /**
      * XML attribute for IDs.
      */
     public static final String ID = "Id";
@@ -875,10 +969,30 @@ public final class Constants {
     public static final String LAST_MODIFIED_ELEMENT = "Last-Modified";
 
     /**
+     * Lease break period max in seconds.
+     */
+    public static final int LEASE_BREAK_PERIOD_MAX = 60;
+
+    /**
+     * Lease break period min in seconds.
+     */
+    public static final int LEASE_BREAK_PERIOD_MIN = 0;
+
+    /**
      * XML element for the lease duration.
      */
     public static final String LEASE_DURATION_ELEMENT = "LeaseDuration";
 
+    /**
+     * Lease duration max in seconds.
+     */
+    public static final int LEASE_DURATION_MAX = 60;
+
+    /**
+     * Lease duration min in seconds.
+     */
+    public static final int LEASE_DURATION_MIN = 15;
+    
     /**
      * XML element for the lease state.
      */

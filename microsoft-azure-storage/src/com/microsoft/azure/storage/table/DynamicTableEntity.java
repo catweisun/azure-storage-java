@@ -15,7 +15,6 @@
 
 package com.microsoft.azure.storage.table;
 
-import java.util.Date;
 import java.util.HashMap;
 
 import com.microsoft.azure.storage.OperationContext;
@@ -82,39 +81,16 @@ public class DynamicTableEntity extends TableServiceEntity {
      * @param rowKey
      *            A <code>String</code> which represents the row key of the {@link DynamicTableEntity} to be initialized.
      * @param etag
-     *            The ETag of the {@link DynamicTableEntity} to be initialized.
+     *            The ETag of the {@link DynamicTableEntity} to be initialized. This value is used to determine if the table 
+     *            entity has changed since it was last read from Microsoft Azure storage. The client cannot update this value 
+     *            on the service.
      * @param properties
      *            A <code>java.util.HashMap</code> containing a map of <code>String</code> property names to
      *            {@link EntityProperty} data typed values to store in the new {@link DynamicTableEntity}.
      */
     public DynamicTableEntity(String partitionKey, String rowKey, String etag,
             final HashMap<String, EntityProperty> properties) {
-        this(partitionKey, rowKey, null /* timestamp */, etag, properties);
-    }
-
-    /**
-     * Initializes a new instance of the {@link DynamicTableEntity} class with the specified partition key and row key.
-     * 
-     * @param partitionKey
-     *            The partition key of the {@link DynamicTableEntity} to be initialized.
-     * @param rowKey
-     *            A <code>String</code> which represents the row key of the {@link DynamicTableEntity} to be initialized.
-     * @param etag
-     *            A <code>String</code> which represents the ETag of the {@link DynamicTableEntity} to be initialized.
-     * @param timestamp
-     *            A <code>java.util.Date</code> object which represents the timestamp of the {@link DynamicTableEntity} to be initialized.
-     * @param properties
-     *            A <code>java.util.HashMap</code> containing a map of <code>String</code> property names to
-     *            {@link EntityProperty} data typed values to store in the new {@link DynamicTableEntity}.
-     */
-    public DynamicTableEntity(String partitionKey, String rowKey, Date timestamp, String etag,
-            final HashMap<String, EntityProperty> properties) {
         super(partitionKey, rowKey);
-
-        // only set if timestamp is not null; otherwise default to new Date()
-        if (timestamp != null) {
-            this.timeStamp = timestamp;
-        }
 
         this.etag = etag;
         this.setProperties(properties);

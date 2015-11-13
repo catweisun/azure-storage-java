@@ -14,6 +14,7 @@
  */
 package com.microsoft.azure.storage;
 
+import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
@@ -37,6 +38,11 @@ public final class OperationContext {
      * enable logging for an individual operation context instance by using {@link setLoggingEnabled}.
      */
     private static boolean enableLoggingByDefault = false;
+
+    /**
+     * Represents a proxy to be used when making a request.
+     */
+    private Proxy proxy;
 
     /**
      * Represents the operation latency, in milliseconds, from the client's perspective. This may include any potential
@@ -202,6 +208,15 @@ public final class OperationContext {
     }
 
     /**
+     * Gets a proxy which will be used when making a request. Default is <code>null</code>.
+     * 
+     * @return A {@link java.net.Proxy} to use when making a request.
+     */
+    public Proxy getProxy() {
+        return this.proxy;
+    }
+
+    /**
      * Gets any additional headers for the request, for example, for proxy or logging information.
      * 
      * @return A <code>java.util.HashMap</code> which contains the the user headers for the request.
@@ -237,7 +252,7 @@ public final class OperationContext {
      * manner.
      * 
      * @param requestResult
-     *        A {@Link RequestResult} to append.
+     *        A {@link RequestResult} to append.
      */
     public synchronized void appendRequestResult(RequestResult requestResult) {
         this.requestResults.add(requestResult);
@@ -376,6 +391,16 @@ public final class OperationContext {
     }
 
     /**
+     * Sets a proxy which will be used when making a request. Default is <code>null</code>.
+     * 
+     * @param proxy
+     *            A {@link java.net.Proxy} to use when making a request.
+     */
+    public void setProxy(Proxy proxy) {
+        this.proxy = proxy;
+    }
+
+    /**
      * Sets any additional headers for the request, for example, for proxy or logging information.
      * 
      * @param userHeaders
@@ -485,7 +510,7 @@ public final class OperationContext {
 
     /**
      * Indicates whether the client library should produce log entries by default. The default can be overridden
-     * to enable logging for an individual operation context instance by using {@link setLoggingEnabled}.
+     * to enable logging for an individual operation context instance by using {@link #setLoggingEnabled}.
      * 
      * @return
      *         <code>true</code> if logging is enabled by default; otherwise <code>false</code>.
@@ -496,10 +521,11 @@ public final class OperationContext {
 
     /**
      * Specifies whether the client library should produce log entries by default. The default can be overridden
-     * to turn on logging for an individual operation context instance by using {@link setLoggingEnabled}.
+     * to turn on logging for an individual operation context instance by using {@link #setLoggingEnabled}.
      * 
      * @param enableLoggingByDefault
-     *        <code>true</code> if logging should be enabled by default; otherwise <code>false</code> if logging should be disabled by default.
+     *        <code>true</code> if logging should be enabled by default; otherwise <code>false</code> if logging should
+     *        be disabled by default.
      */
     public static void setLoggingEnabledByDefault(boolean enableLoggingByDefault) {
         OperationContext.enableLoggingByDefault = enableLoggingByDefault;

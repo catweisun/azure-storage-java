@@ -19,15 +19,6 @@ package com.microsoft.azure.storage.table;
  * Describes the payload formats supported for Tables.
  */
 public enum TablePayloadFormat {
-
-    /**
-     * Use AtomPub.
-     * 
-     * @Deprecated Deprecated as of 0.7.0 in favor of Json format.
-     */
-    @Deprecated
-    AtomPub,
-
     /**
      * Use JSON with full metadata.
      */

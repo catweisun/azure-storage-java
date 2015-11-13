@@ -20,11 +20,12 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
 
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.LoggerFactory;
@@ -32,30 +33,14 @@ import org.slf4j.LoggerFactory;
 import com.microsoft.azure.storage.TestRunners.CloudTests;
 import com.microsoft.azure.storage.TestRunners.DevFabricTests;
 import com.microsoft.azure.storage.TestRunners.DevStoreTests;
+import com.microsoft.azure.storage.blob.BlobTestHelper;
+import com.microsoft.azure.storage.blob.BlobType;
+import com.microsoft.azure.storage.blob.CloudBlob;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.azure.storage.core.LogConstants;
 import com.microsoft.azure.storage.core.Logger;
 
 /*
- * To run pass these tests you must:
- * 
- * 1. Have the simple sl4j binding on your classpath. Add the following to the dependency section of your pom:
- * <dependency>
- * <groupId>org.slf4j</groupId>
- * <artifactId>slf4j-simple</artifactId>
- * <version>1.7.5</version>
- * <scope>test</scope>
- * </dependency>
- * 
- * 2. Create a "resources" directory under src/test. In src/test/resources create a "simplelogger.properties" file with
- * the following lines:
- * org.slf4j.simpleLogger.defaultLogLevel = trace
- * org.slf4j.simpleLogger.log.limited = error
- * org.slf4j.simpleLogger.showThreadName = false
- * 
- * 3. Remove or comment out the @Ignore annotation on the class
- * 
- * See http://www.slf4j.org/apidocs/org/slf4j/impl/SimpleLogger.html for more information.
- * 
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * If you'd like to use a different slf4j binding and/or not use Maven, you will need to add a different class path
  * dependency and set the properties for it accordingly. The dependency and the properties file will need to be put in
  * the appropriate locations for the logger implementation chosen.
@@ -68,7 +53,6 @@ import com.microsoft.azure.storage.core.Logger;
  * Then, you will need to modify the readAndCompareOutput method to parse the logs entries accordingly.
  */
 @Category({ DevFabricTests.class, DevStoreTests.class, CloudTests.class })
-@Ignore
 public class LoggerTests {
 
     private final static String TRACE = "TRACE";
@@ -266,6 +250,62 @@ public class LoggerTests {
         ctx.setLoggingEnabled(true);
         writeErrorLogs(ctx);
         readAndCompareOutput(ERROR, OperationContext.defaultLoggerName, ctx.getClientRequestID());
+    }
+
+    @Test
+    public synchronized void testStringToSign()
+            throws IOException, InvalidKeyException, StorageException, URISyntaxException {
+        
+        OperationContext.setLoggingEnabledByDefault(true);
+        final CloudBlobContainer cont = BlobTestHelper.getRandomContainerReference();
+        
+        try {
+            cont.create();
+            final CloudBlob blob = BlobTestHelper.uploadNewBlob(cont, BlobType.BLOCK_BLOB, "", 0, null);
+            
+            // Test logging for SAS access
+            baos.reset();
+            blob.generateSharedAccessSignature(null, null);
+            baos.flush();
+    
+            String log = baos.toString();
+            String[] logEntries = log.split("[\\r\\n]+");
+    
+            assertEquals(1, logEntries.length);
+            
+            // example log entry: TRACE ROOT - {0b902691-1a8e-41da-ab60-5b912df186a6}: {Test string}
+            String[] segment = logEntries[0].split("\\{");
+            assertEquals(3, segment.length);
+            assertTrue(segment[1].startsWith("*"));
+            assertTrue(segment[2].startsWith(String.format(LogConstants.SIGNING, Constants.EMPTY_STRING)));
+            baos.reset();
+    
+            // Test logging for Shared Key access
+            OperationContext ctx = new OperationContext();
+            blob.downloadAttributes(null, null, ctx);
+            
+            baos.flush();
+            log = baos.toString();
+            logEntries = log.split("[\\r\\n]+");
+            assertNotEquals(0, logEntries.length);
+            
+            // Select correct log entry
+            for (int n = 0; n < logEntries.length; n++) {
+                if (logEntries[n].startsWith(LoggerTests.TRACE)) {
+                    segment = logEntries[n].split("\\{");
+                    assertEquals(3, segment.length);
+                    assertTrue(segment[1].startsWith(ctx.getClientRequestID()));
+                    assertTrue(segment[2].startsWith(String.format(LogConstants.SIGNING, Constants.EMPTY_STRING)));
+                    return;
+                }
+            }
+            
+            // If this line is reached then the log entry was not found
+            fail();
+        }
+        finally {
+            cont.deleteIfExists();
+        }
     }
 
     private void writeTraceLogs(OperationContext ctx) {

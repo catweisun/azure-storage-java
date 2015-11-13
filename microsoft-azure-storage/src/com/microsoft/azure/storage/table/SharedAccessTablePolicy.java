@@ -55,7 +55,7 @@ public final class SharedAccessTablePolicy extends SharedAccessPolicy {
      * Converts this policy's permissions to a string.
      * 
      * @return A <code>String</code> that represents the shared access permissions in the "raud" format, which is
-     *         described at {@link SharedAccessTablePolicy#permissionsFromString(String)}.
+     *         described at {@link SharedAccessTablePolicy#setPermissionsFromString(String)}.
      */
     @Override
     public String permissionsToString() {
@@ -119,7 +119,7 @@ public final class SharedAccessTablePolicy extends SharedAccessPolicy {
                     retSet.add(SharedAccessTablePermissions.DELETE);
                     break;
                 default:
-                    throw new IllegalArgumentException(String.format(SR.PERMISSIONS_COULD_NOT_BE_PARSED, value));
+                    throw new IllegalArgumentException(String.format(SR.ENUM_COULD_NOT_BE_PARSED, "Permissions", value));
             }
         }
 

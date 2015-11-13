@@ -29,16 +29,18 @@ import javax.xml.stream.XMLStreamException;
 
 import com.microsoft.azure.storage.Constants;
 import com.microsoft.azure.storage.DoesServiceRequest;
+import com.microsoft.azure.storage.IPRange;
 import com.microsoft.azure.storage.OperationContext;
 import com.microsoft.azure.storage.ResultContinuation;
 import com.microsoft.azure.storage.ResultSegment;
 import com.microsoft.azure.storage.SharedAccessPolicyHandler;
 import com.microsoft.azure.storage.SharedAccessPolicySerializer;
+import com.microsoft.azure.storage.SharedAccessProtocols;
 import com.microsoft.azure.storage.StorageCredentials;
-import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
 import com.microsoft.azure.storage.StorageCredentialsSharedAccessSignature;
 import com.microsoft.azure.storage.StorageErrorCodeStrings;
 import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.StorageExtendedErrorInformation;
 import com.microsoft.azure.storage.StorageUri;
 import com.microsoft.azure.storage.core.ExecutionEngine;
 import com.microsoft.azure.storage.core.PathUtility;
@@ -57,7 +59,7 @@ public final class CloudTable {
     /**
      * The name of the table.
      */
-    private final String name;
+    private String name;
 
     /**
      * Holds the list of URIs for all locations.
@@ -114,10 +116,8 @@ public final class CloudTable {
      *
      * @throws StorageException
      *             If a storage service error occurred.
-     * @throws URISyntaxException
-     *             If the resource URI is invalid.
      */
-    public CloudTable(final URI uri) throws URISyntaxException, StorageException {
+    public CloudTable(final URI uri) throws StorageException {
         this(new StorageUri(uri, null));
     }
 
@@ -130,11 +130,39 @@ public final class CloudTable {
      *
      * @throws StorageException
      *             If a storage service error occurred.
-     * @throws URISyntaxException
-     *             If the resource URI is invalid.
      */
-    public CloudTable(final StorageUri uri) throws URISyntaxException, StorageException {
-        this(uri, null /* client*/);
+    public CloudTable(final StorageUri uri) throws StorageException {
+        this(uri, (StorageCredentials)null);
+    }
+    
+    /**
+     * Creates an instance of the <code>CloudTable</code> class using the specified table URI and credentials.
+     *
+     * @param uri
+     *            A <code>java.net.URI</code> object that represents the absolute URI of the table.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
+     *
+     * @throws StorageException
+     *             If a storage service error occurred.
+     */
+    public CloudTable(final URI uri, final StorageCredentials credentials) throws StorageException {
+        this(new StorageUri(uri, null), credentials);
+    }
+
+    /**
+     * Creates an instance of the <code>CloudTable</code> class using the specified table StorageUri and credentials.
+     *
+     * @param uri
+     *            A {@link StorageUri} object that represents the absolute StorageUri of the table.
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
+     *
+     * @throws StorageException
+     *             If a storage service error occurred.
+     */
+    public CloudTable(final StorageUri uri, final StorageCredentials credentials) throws StorageException {
+        this.parseQueryAndVerify(uri, credentials);
     }
 
     /**
@@ -157,63 +185,14 @@ public final class CloudTable {
      * @see <a href="http://msdn.microsoft.com/library/azure/dd179338.aspx">Understanding the Table Service Data
      *      Model</a>
      */
-    public CloudTable(final String tableName, final CloudTableClient client) throws URISyntaxException,
+    protected CloudTable(final String tableName, final CloudTableClient client) throws URISyntaxException,
     StorageException {
         Utility.assertNotNull("client", client);
         Utility.assertNotNull("tableName", tableName);
 
         this.storageUri = PathUtility.appendPathToUri(client.getStorageUri(), tableName);
-
         this.name = tableName;
         this.tableServiceClient = client;
-
-        this.parseQueryAndVerify(this.storageUri, client, client.isUsePathStyleUris());
-    }
-
-    /**
-     * Creates an instance of the <code>CloudTable</code> class using the specified table URI and client.
-     *
-     * @param uri
-     *            A <code>java.net.URI</code> object that represents the absolute URI of the table.
-     * @param client
-     *            A {@link CloudTableClient} object that represents the associated service client, and that specifies
-     *            the endpoint for the Table service.
-     *
-     * @throws StorageException
-     *             If a storage service error occurred.
-     * @throws URISyntaxException
-     *             If the resource URI is invalid.
-     */
-    public CloudTable(final URI uri, final CloudTableClient client) throws URISyntaxException, StorageException {
-        this(new StorageUri(uri, null), client);
-    }
-
-    /**
-     * Creates an instance of the <code>CloudTable</code> class using the specified table URI and client.
-     *
-     * @param uri
-     *            A {@link StorageUri} object that represents the absolute URI of the table.
-     * @param client
-     *            A {@link CloudTableClient} object that represents the associated service client, and that specifies
-     *            the endpoint for the Table service.
-     *
-     * @throws StorageException
-     *             If a storage service error occurred.
-     * @throws URISyntaxException
-     *             If the resource URI is invalid.
-     */
-    public CloudTable(final StorageUri uri, final CloudTableClient client) throws URISyntaxException, StorageException {
-        Utility.assertNotNull("storageUri", uri);
-
-        this.storageUri = uri;
-
-        boolean usePathStyleUris = client == null ? Utility.determinePathStyleFromUri(this.storageUri.getPrimaryUri())
-                : client.isUsePathStyleUris();
-
-        this.name = PathUtility.getTableNameFromUri(uri.getPrimaryUri(), usePathStyleUris);
-        this.tableServiceClient = client;
-
-        this.parseQueryAndVerify(this.storageUri, client, usePathStyleUris);
     }
 
     /**
@@ -261,7 +240,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         Utility.assertNotNullOrEmpty("tableName", this.name);
 
@@ -305,7 +284,7 @@ public final class CloudTable {
      */
     @DoesServiceRequest
     public boolean createIfNotExists(TableRequestOptions options, OperationContext opContext) throws StorageException {
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         boolean exists = this.exists(true, options, opContext);
         if (exists) {
@@ -361,7 +340,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         Utility.assertNotNullOrEmpty("tableName", this.name);
         final DynamicTableEntity tableEntry = new DynamicTableEntity();
@@ -406,7 +385,7 @@ public final class CloudTable {
      */
     @DoesServiceRequest
     public boolean deleteIfExists(TableRequestOptions options, OperationContext opContext) throws StorageException {
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         if (this.exists(true, options, opContext)) {
             try {
@@ -491,7 +470,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.getServiceClient());
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.getServiceClient());
         return batch.execute(this.getServiceClient(), this.getName(), options, opContext);
     }
 
@@ -894,7 +873,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         Utility.assertNotNullOrEmpty("tableName", this.name);
 
@@ -956,7 +935,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         ExecutionEngine.executeWithRetry(this.tableServiceClient, this,
                 this.uploadPermissionsImpl(permissions, options), options.getRetryPolicyFactory(), opContext);
@@ -998,6 +977,11 @@ public final class CloudTable {
 
                     return null;
                 }
+                
+                @Override
+                public StorageExtendedErrorInformation parseErrorDetails() {
+                    return TableStorageErrorDeserializer.parseErrorDetails(this);
+                }
             };
 
             return putRequest;
@@ -1005,17 +989,17 @@ public final class CloudTable {
         catch (IllegalArgumentException e) {
             // to do : Move this to multiple catch clause so we can avoid the duplicated code once we move to Java 1.7.
             // The request was not even made. There was an error while trying to read the permissions. Just throw.
-            StorageException translatedException = StorageException.translateException(null, e, null);
+            StorageException translatedException = StorageException.translateClientException(e);
             throw translatedException;
         }
         catch (XMLStreamException e) {
             // The request was not even made. There was an error while trying to read the permissions. Just throw.
-            StorageException translatedException = StorageException.translateException(null, e, null);
+            StorageException translatedException = StorageException.translateClientException(e);
             throw translatedException;
         }
         catch (UnsupportedEncodingException e) {
             // The request was not even made. There was an error while trying to read the permissions. Just throw.
-            StorageException translatedException = StorageException.translateException(null, e, null);
+            StorageException translatedException = StorageException.translateClientException(e);
             throw translatedException;
         }
     }
@@ -1058,7 +1042,7 @@ public final class CloudTable {
         }
 
         opContext.initialize();
-        options = TableRequestOptions.applyDefaults(options, this.tableServiceClient);
+        options = TableRequestOptions.populateAndApplyDefaults(options, this.tableServiceClient);
 
         return ExecutionEngine.executeWithRetry(this.tableServiceClient, this, this.downloadPermissionsImpl(options),
                 options.getRetryPolicyFactory(), opContext);
@@ -1107,7 +1091,11 @@ public final class CloudTable {
 
                 return permissions;
             }
-
+            
+            @Override
+            public StorageExtendedErrorInformation parseErrorDetails() {
+                return TableStorageErrorDeserializer.parseErrorDetails(this);
+            }
         };
 
         return getRequest;
@@ -1142,6 +1130,46 @@ public final class CloudTable {
     public String generateSharedAccessSignature(final SharedAccessTablePolicy policy,
             final String accessPolicyIdentifier, final String startPartitionKey, final String startRowKey,
             final String endPartitionKey, final String endRowKey) throws InvalidKeyException, StorageException {
+        
+        return generateSharedAccessSignature(policy, accessPolicyIdentifier,
+                startPartitionKey, startRowKey, endPartitionKey, endRowKey, null /* IP Range */, null /* Protocols */);
+    }
+
+    /**
+     * Creates a shared access signature for the table.
+     *
+     * @param policy
+     *            A {@link SharedAccessTablePolicy} object which represents the access policy for the shared access
+     *            signature.
+     * @param accessPolicyIdentifier
+     *            A <code>String</code> which represents a table-level access policy.
+     * @param startPartitionKey
+     *            A <code>String</code> which represents the starting partition key.
+     * @param startRowKey
+     *            A <code>String</code> which represents the starting row key.
+     * @param endPartitionKey
+     *            A <code>String</code> which represents the ending partition key.
+     * @param endRowKey
+     *            A <code>String</code> which represents the ending end key.
+     * @param ipRange
+     *            A {@link IPRange} object containing the range of allowed IP addresses.
+     * @param protocols
+     *            A {@link SharedAccessProtocols} representing the allowed Internet protocols.
+     *
+     * @return A <code>String</code> containing the shared access signature for the table.
+     *
+     * @throws InvalidKeyException
+     *             If an invalid key was passed.
+     * @throws StorageException
+     *             If a storage service error occurred.
+     * @throws IllegalArgumentException
+     *             If an unexpected value is passed.
+     */
+    public String generateSharedAccessSignature(
+            final SharedAccessTablePolicy policy, final String accessPolicyIdentifier, final String startPartitionKey,
+            final String startRowKey, final String endPartitionKey, final String endRowKey, final IPRange ipRange,
+            final SharedAccessProtocols protocols)
+            throws InvalidKeyException, StorageException {
 
         if (!StorageCredentialsHelper.canCredentialsSignRequest(this.tableServiceClient.getCredentials())) {
             throw new IllegalArgumentException(SR.CANNOT_CREATE_SAS_WITHOUT_ACCOUNT_KEY);
@@ -1149,20 +1177,13 @@ public final class CloudTable {
 
         final String resourceName = this.getSharedAccessCanonicalName();
 
-        final String signature = SharedAccessSignatureHelper.generateSharedAccessSignatureHashForTable(policy,
-                accessPolicyIdentifier, resourceName, startPartitionKey, startRowKey, endPartitionKey, endRowKey,
-                this.tableServiceClient, null);
+        final String signature = SharedAccessSignatureHelper.generateSharedAccessSignatureHashForTable(
+                policy, accessPolicyIdentifier, resourceName, ipRange, protocols,
+                startPartitionKey, startRowKey, endPartitionKey, endRowKey, this.tableServiceClient);
 
-        String accountKeyName = null;
-        StorageCredentials credentials = this.tableServiceClient.getCredentials();
-
-        if (credentials instanceof StorageCredentialsAccountAndKey) {
-            accountKeyName = ((StorageCredentialsAccountAndKey) credentials).getAccountKeyName();
-        }
-
-        final UriQueryBuilder builder = SharedAccessSignatureHelper.generateSharedAccessSignatureForTable(policy,
-                startPartitionKey, startRowKey, endPartitionKey, endRowKey, accessPolicyIdentifier, this.name,
-                signature, accountKeyName);
+        final UriQueryBuilder builder = SharedAccessSignatureHelper.generateSharedAccessSignatureForTable(
+                policy, startPartitionKey, startRowKey, endPartitionKey, endRowKey, accessPolicyIdentifier,
+                ipRange, protocols, this.name,  signature);
 
         return builder.toString();
     }
@@ -1176,59 +1197,44 @@ public final class CloudTable {
         String accountName = this.getServiceClient().getCredentials().getAccountName();
         String tableNameLowerCase = this.getName().toLowerCase(Locale.ENGLISH);
 
-        return String.format("/%s/%s", accountName, tableNameLowerCase);
+        return String.format("/%s/%s/%s", SR.TABLE, accountName, tableNameLowerCase);
     }
 
     /**
-     * Parse Uri for SAS (Shared access signature) information.
-     *
-     * Validate that no other query parameters are passed in. Any SAS information will be recorded as corresponding
-     * credentials instance. If existingClient is passed in, any SAS information found will not be supported. Otherwise
-     * a new client is created based on SAS information or as anonymous credentials.
-     *
+     * Verifies the passed in URI. Then parses it and uses its components to populate this resource's properties.
+     * 
      * @param completeUri
      *            A {@link StorageUri} object which represents the complete URI.
-     * @param existingClient
-     *            A {@link CloudTableClient} object which represents the client to use.
-     * @param usePathStyleUris
-     *            <code>true</code> if path-style URIs are used; otherwise <code>false</code>.
-     *
-     * @throws URISyntaxException
+     * @param credentials
+     *            A {@link StorageCredentials} object used to authenticate access.
      * @throws StorageException
-     */
-    private void parseQueryAndVerify(final StorageUri completeUri, final CloudTableClient existingClient,
-            final boolean usePathStyleUris) throws URISyntaxException, StorageException {
+     *             If a storage service error occurred.
+     */  
+    private void parseQueryAndVerify(final StorageUri completeUri, final StorageCredentials credentials) 
+            throws StorageException {
         Utility.assertNotNull("completeUri", completeUri);
 
         if (!completeUri.isAbsolute()) {
-            final String errorMessage = String.format(SR.RELATIVE_ADDRESS_NOT_PERMITTED, completeUri.toString());
-            throw new IllegalArgumentException(errorMessage);
+            throw new IllegalArgumentException(String.format(SR.RELATIVE_ADDRESS_NOT_PERMITTED, completeUri.toString()));
         }
 
         this.storageUri = PathUtility.stripURIQueryAndFragment(completeUri);
+        
+        final StorageCredentialsSharedAccessSignature parsedCredentials = 
+                SharedAccessSignatureHelper.parseQuery(completeUri);
 
-        final HashMap<String, String[]> queryParameters = PathUtility.parseQueryString(completeUri.getQuery());
-        final StorageCredentialsSharedAccessSignature sasCreds = SharedAccessSignatureHelper
-                .parseQuery(queryParameters);
-
-        if (sasCreds == null) {
-            if (existingClient == null) {
-                throw new IllegalArgumentException(SR.STORAGE_CLIENT_OR_SAS_REQUIRED);
-            }
-            return;
+        if (credentials != null && parsedCredentials != null) {
+            throw new IllegalArgumentException(SR.MULTIPLE_CREDENTIALS_PROVIDED);
         }
 
-        final Boolean sameCredentials = existingClient == null ? false : Utility.areCredentialsEqual(sasCreds,
-                existingClient.getCredentials());
-
-        if (existingClient == null || !sameCredentials) {
-            this.tableServiceClient = new CloudTableClient(new URI(PathUtility.getServiceClientBaseAddress(
-                    this.getUri(), usePathStyleUris)), sasCreds);
+        try {
+            final boolean usePathStyleUris = Utility.determinePathStyleFromUri(this.storageUri.getPrimaryUri());
+            this.tableServiceClient = new CloudTableClient(PathUtility.getServiceClientBaseAddress(
+                    this.getStorageUri(), usePathStyleUris), credentials != null ? credentials : parsedCredentials);
+            this.name = PathUtility.getTableNameFromUri(storageUri.getPrimaryUri(), usePathStyleUris);
         }
-
-        if (existingClient != null && !sameCredentials) {
-            this.tableServiceClient.setDefaultRequestOptions(new TableRequestOptions(existingClient
-                    .getDefaultRequestOptions()));
+        catch (final URISyntaxException e) {
+            throw Utility.generateNewUnexpectedStorageException(e);
         }
     }
 }

@@ -8,6 +8,8 @@ import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
 import com.microsoft.azure.storage.analytics.CloudAnalyticsClientTests;
+import com.microsoft.azure.storage.blob.BlobOutputStreamTests;
+import com.microsoft.azure.storage.blob.CloudAppendBlobTests;
 import com.microsoft.azure.storage.blob.CloudBlobClientTests;
 import com.microsoft.azure.storage.blob.CloudBlobContainerTests;
 import com.microsoft.azure.storage.blob.CloudBlobDirectoryTests;
@@ -19,11 +21,13 @@ import com.microsoft.azure.storage.file.CloudFileClientTests;
 import com.microsoft.azure.storage.file.CloudFileDirectoryTests;
 import com.microsoft.azure.storage.file.CloudFileShareTests;
 import com.microsoft.azure.storage.file.CloudFileTests;
+import com.microsoft.azure.storage.file.FileSasTests;
 import com.microsoft.azure.storage.queue.CloudQueueClientGB18030Test;
 import com.microsoft.azure.storage.queue.CloudQueueClientTests;
 import com.microsoft.azure.storage.queue.CloudQueueTests;
 import com.microsoft.azure.storage.table.TableBatchOperationTests;
 import com.microsoft.azure.storage.table.TableClientTests;
+import com.microsoft.azure.storage.table.TableDateTests;
 import com.microsoft.azure.storage.table.TableEscapingTests;
 import com.microsoft.azure.storage.table.TableODataTests;
 import com.microsoft.azure.storage.table.TableOperationTests;
@@ -85,14 +89,16 @@ public class TestRunners {
 
     // Test suites
     @RunWith(Suite.class)
-    @SuiteClasses({ EventFiringTests.class, GenericTests.class, LoggerTests.class, SecondaryTests.class,
-            ServicePropertiesTests.class, StorageAccountTests.class, StorageUriTests.class })
+    @SuiteClasses({ AccountSasTests.class, EventFiringTests.class, GenericTests.class, LoggerTests.class,
+        MaximumExecutionTimeTests.class, SecondaryTests.class,  ServicePropertiesTests.class, StorageAccountTests.class,
+        StorageUriTests.class })
     public static class CoreTestSuite {
     }
 
     @RunWith(Suite.class)
-    @SuiteClasses({ CloudBlobClientTests.class, CloudBlobContainerTests.class, CloudBlobDirectoryTests.class,
-            CloudBlockBlobTests.class, CloudPageBlobTests.class, LeaseTests.class, SasTests.class })
+    @SuiteClasses({ BlobOutputStreamTests.class, CloudBlobClientTests.class, CloudBlobContainerTests.class, 
+        CloudBlobDirectoryTests.class, CloudAppendBlobTests.class, CloudBlockBlobTests.class, CloudPageBlobTests.class,
+        LeaseTests.class, SasTests.class })
     public static class BlobTestSuite {
     }
 
@@ -102,7 +108,7 @@ public class TestRunners {
     }
 
     @RunWith(Suite.class)
-    @SuiteClasses({ TableBatchOperationTests.class, TableClientTests.class, TableEscapingTests.class,
+    @SuiteClasses({ TableBatchOperationTests.class, TableClientTests.class, TableDateTests.class, TableEscapingTests.class,
             TableODataTests.class, TableOperationTests.class, TableQueryTests.class, TableSerializerTests.class,
             TableTests.class })
     public static class TableTestSuite {
@@ -110,7 +116,7 @@ public class TestRunners {
 
     @RunWith(Suite.class)
     @SuiteClasses({ CloudFileClientTests.class, CloudFileDirectoryTests.class, CloudFileShareTests.class,
-            CloudFileTests.class })
+            CloudFileTests.class, FileSasTests.class })
     public static class FileTestSuite {
     }
 

@@ -24,6 +24,11 @@ import com.microsoft.azure.storage.AccessCondition;
 public final class BlobProperties {
 
     /**
+     * Represents the number of committed blocks on the append blob.
+     */
+    private Integer appendBlobCommittedBlockCount;
+    
+    /**
      * Represents the type of the blob.
      */
     private BlobType blobType = BlobType.UNSPECIFIED;
@@ -96,7 +101,12 @@ public final class BlobProperties {
      * Represents the size, in bytes, of the blob.
      */
     private long length;
-
+    
+    /**
+     * Represents the page blob's current sequence number.
+     */
+    private Long pageBlobSequenceNumber;
+    
     /**
      * Creates an instance of the <code>BlobProperties</code> class.
      */
@@ -126,6 +136,8 @@ public final class BlobProperties {
         this.lastModified = other.lastModified;
         this.contentMD5 = other.contentMD5;
         this.cacheControl = other.cacheControl;
+        this.pageBlobSequenceNumber = other.pageBlobSequenceNumber;
+        this.appendBlobCommittedBlockCount = other.appendBlobCommittedBlockCount;
     }
 
     /**
@@ -138,6 +150,15 @@ public final class BlobProperties {
         this.blobType = type;
     }
 
+    /**
+     * If the blob is an append blob, gets the number of committed blocks.
+     * 
+     * @return A <code>Integer</code> value that represents the number of committed blocks.
+     */
+    public Integer getAppendBlobCommittedBlockCount() {
+        return this.appendBlobCommittedBlockCount;
+    }
+    
     /**
      * Gets the blob type for the blob.
      * 
@@ -219,8 +240,9 @@ public final class BlobProperties {
      * The ETag value is a unique identifier that is updated when a write operation is performed against the container.
      * It may be used to perform operations conditionally, providing concurrency control and improved efficiency.
      * <p>
-     * The {@link AccessCondition#ifMatch} and {@link AccessCondition#ifNoneMatch} methods take an ETag value and return
-     * an {@link AccessCondition} object that may be specified on the request.
+     * The {@link AccessCondition#generateIfMatchCondition(String)} and
+     * {@link AccessCondition#generateIfNoneMatchCondition(String)} methods take an ETag value and return an
+     * {@link AccessCondition} object that may be specified on the request.
      * 
      * @return A <code>String</code> which represents the ETag value.
      */
@@ -272,7 +294,16 @@ public final class BlobProperties {
     public long getLength() {
         return this.length;
     }
-
+    
+    /**
+     * If the blob is a page blob, gets the page blob's current sequence number.
+     * 
+     * @return A <code>Long</code> containing the page blob's current sequence number.
+     */
+    public Long getPageBlobSequenceNumber() {
+        return this.pageBlobSequenceNumber;
+    }
+    
     /**
      * Sets the cache control value for the blob.
      * 
@@ -333,6 +364,16 @@ public final class BlobProperties {
         this.contentType = contentType;
     }
 
+    /**
+     * If the blob is an append blob, sets the number of committed blocks.
+     * 
+     * @param appendBlobCommittedBlockCount
+     *        A <code>Integer</code> value that represents the number of committed blocks.
+     */
+    protected void setAppendBlobCommittedBlockCount(final Integer appendBlobCommittedBlockCount) {
+        this.appendBlobCommittedBlockCount  = appendBlobCommittedBlockCount;
+    }
+    
     /**
      * Sets the blob type.
      * 
@@ -412,5 +453,14 @@ public final class BlobProperties {
     protected void setLength(final long length) {
         this.length = length;
     }
-
+    
+    /**
+     * If the blob is a page blob, sets the blob's current sequence number.
+     * 
+     * @param pageBlobSequenceNumber
+     *        A long containing the blob's current sequence number.
+     */
+    protected void setPageBlobSequenceNumber(final Long pageBlobSequenceNumber) {
+    	this.pageBlobSequenceNumber = pageBlobSequenceNumber;
+    }
 }

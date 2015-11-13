@@ -20,6 +20,8 @@ package com.microsoft.azure.storage.core;
  */
 public class SR {
     public static final String ACCOUNT_NAME_NULL_OR_EMPTY = "The account name is null or empty.";
+    public static final String ACCOUNT_NAME_MISMATCH = "The account name does not match the existing account name on the credentials.";
+    public static final String APPEND_BLOB_MD5_NOT_POSSIBLE = "MD5 cannot be calculated for an existing append blob because it would require reading the existing data. Please disable StoreFileContentMD5.";
     public static final String ARGUMENT_NULL_OR_EMPTY = "The argument must not be null or an empty string. Argument name: %s.";
     public static final String ARGUMENT_OUT_OF_RANGE_ERROR = "The argument is out of range. Argument name: %s, Value passed: %s.";
     public static final String ATTEMPTED_TO_SERIALIZE_INACCESSIBLE_PROPERTY = "An attempt was made to access an inaccessible member of the entity during serialization.";
@@ -32,6 +34,7 @@ public class SR {
     public static final String CANNOT_CREATE_SAS_FOR_GIVEN_CREDENTIALS = "Cannot create Shared Access Signature as the credentials does not have account name information. Please check that the credentials provided support creating Shared Access Signature.";
     public static final String CANNOT_CREATE_SAS_FOR_SNAPSHOTS = "Cannot create Shared Access Signature via references to blob snapshots. Please perform the given operation on the root blob instead.";
     public static final String CANNOT_CREATE_SAS_WITHOUT_ACCOUNT_KEY = "Cannot create Shared Access Signature unless the Account Key credentials are used by the ServiceClient.";
+    public static final String CANNOT_TRANSFORM_NON_HTTPS_URI_WITH_HTTPS_ONLY_CREDENTIALS = "Cannot use HTTP with credentials that only support HTTPS.";
     public static final String CONTAINER = "container";
     public static final String CONTENT_LENGTH_MISMATCH = "An incorrect number of bytes was read from the connection. The connection may have been closed.";
     public static final String CREATING_NETWORK_STREAM = "Creating a NetworkInputStream and expecting to read %s bytes.";
@@ -48,6 +51,7 @@ public class SR {
     public static final String ETAG_INVALID_FOR_DELETE = "Delete requires a valid ETag (which may be the '*' wildcard).";
     public static final String ETAG_INVALID_FOR_MERGE = "Merge requires a valid ETag (which may be the '*' wildcard).";
     public static final String ETAG_INVALID_FOR_UPDATE = "Replace requires a valid ETag (which may be the '*' wildcard).";
+    public static final String ENUM_COULD_NOT_BE_PARSED = "%s could not be parsed from '%s'.";
     public static final String EXCEPTION_THROWN_DURING_DESERIALIZATION = "The entity threw an exception during deserialization.";
     public static final String EXCEPTION_THROWN_DURING_SERIALIZATION = "The entity threw an exception during serialization.";
     public static final String EXPECTED_A_FIELD_NAME = "Expected a field name.";
@@ -67,6 +71,7 @@ public class SR {
     public static final String INVALID_ACL_ACCESS_TYPE = "Invalid acl public access type returned '%s'. Expected blob or container.";
     public static final String INVALID_BLOB_TYPE = "Incorrect Blob type, please use the correct Blob type to access a blob on the server. Expected %s, actual %s.";
     public static final String INVALID_BLOCK_ID = "Invalid blockID, blockID must be a valid Base64 String.";
+    public static final String INVALID_BLOCK_SIZE = "Append block data should not exceed the maximum blob size condition value.";
     public static final String INVALID_CONDITIONAL_HEADERS = "The conditionals specified for this operation did not match server.";
     public static final String INVALID_CONNECTION_STRING = "Invalid connection string.";
     public static final String INVALID_CONNECTION_STRING_DEV_STORE_NOT_TRUE = "Invalid connection string, the UseDevelopmentStorage key must always be paired with 'true'.  Remove the flag entirely otherwise.";
@@ -77,6 +82,7 @@ public class SR {
     public static final String INVALID_EDMTYPE_VALUE = "Invalid value '%s' for EdmType.";
     public static final String INVALID_FILE_LENGTH = "File length must be greater than 0 bytes.";
     public static final String INVALID_GEO_REPLICATION_STATUS = "Null or Invalid geo-replication status in response: %s.";
+    public static final String INVALID_IP_ADDRESS = "Error when parsing IPv4 address: IP address '%s' is invalid.";
     public static final String INVALID_KEY = "Storage Key is not a valid base64 encoded string.";
     public static final String INVALID_LISTING_DETAILS = "Invalid blob listing details specified.";
     public static final String INVALID_LOGGING_LEVEL = "Invalid logging operations specified.";
@@ -96,7 +102,6 @@ public class SR {
     public static final String INVALID_STORAGE_SERVICE = "Invalid storage service specified.";
     public static final String INVALID_STREAM_LENGTH = "Invalid stream length; stream must be between 0 and %s MB in length.";
     public static final String ITERATOR_EMPTY = "There are no more elements in this enumeration.";
-    public static final String KEY_NULL = "Key invalid. Cannot be null.";
     public static final String LEASE_CONDITION_ON_SOURCE = "A lease condition cannot be specified on the source of a copy.";
     public static final String LOG_STREAM_END_ERROR = "Error parsing log record: unexpected end of stream.";
     public static final String LOG_STREAM_DELIMITER_ERROR = "Error parsing log record: unexpected delimiter encountered.";
@@ -111,6 +116,7 @@ public class SR {
     public static final String MISSING_MANDATORY_PARAMETER_FOR_SAS = "Missing mandatory parameters for valid Shared Access Signature.";
     public static final String MISSING_MD5 = "ContentMD5 header is missing in the response.";
     public static final String MISSING_NULLARY_CONSTRUCTOR = "Class type must contain contain a nullary constructor.";
+    public static final String MULTIPLE_CREDENTIALS_PROVIDED = "Cannot provide credentials as part of the address and as constructor parameter. Either pass in the address or use a different constructor.";
     public static final String OPS_IN_BATCH_MUST_HAVE_SAME_PARTITION_KEY = "All entities in a given batch must have the same partition key.";
     public static final String PARAMETER_NOT_IN_RANGE = "The value of the parameter '%s' should be between %s and %s.";
     public static final String PARAMETER_SHOULD_BE_GREATER = "The value of the parameter '%s' should be greater than %s.";
@@ -120,9 +126,9 @@ public class SR {
     public static final String PARTITIONKEY_MISSING_FOR_UPDATE = "Replace requires a partition key.";
     public static final String PARTITIONKEY_MISSING_FOR_INSERT = "Insert requires a partition key.";
     public static final String PATH_STYLE_URI_MISSING_ACCOUNT_INFORMATION = "Missing account name information inside path style URI. Path style URIs should be of the form http://<IPAddress:Port>/<accountName>";
-    public static final String PERMISSIONS_COULD_NOT_BE_PARSED = "Permissions could not be parsed from '%s'.";
     public static final String PRIMARY_ONLY_COMMAND = "This operation can only be executed against the primary storage location.";
     public static final String PROPERTY_CANNOT_BE_SERIALIZED_AS_GIVEN_EDMTYPE = "Property %s with Edm Type %s cannot be de-serialized.";
+    public static final String PRECONDITION_FAILURE_IGNORED = "Pre-condition failure on a retry is being ignored since the request should have succeeded in the first attempt.";
     public static final String QUERY_PARAMETER_NULL_OR_EMPTY = "Cannot encode a query parameter with a null or empty key.";
     public static final String QUERY_REQUIRES_VALID_CLASSTYPE_OR_RESOLVER = "Query requires a valid class type or resolver.";
     public static final String QUEUE = "queue";
@@ -140,8 +146,7 @@ public class SR {
     public static final String SHARE = "share";
     public static final String SNAPSHOT_LISTING_ERROR = "Listing snapshots is only supported in flat mode (no delimiter). Consider setting useFlatBlobListing to true.";
     public static final String SNAPSHOT_QUERY_OPTION_ALREADY_DEFINED = "Snapshot query parameter is already defined in the blob URI. Either pass in a snapshotTime parameter or use a full URL with a snapshot query parameter.";
-    public static final String STORAGE_QUEUE_CREDENTIALS_NULL = "StorageCredentials cannot be null for the Queue service.";
-    public static final String STORAGE_TABLE_CREDENTIALS_NULL = "StorageCredentials cannot be null for the Table service.";
+    public static final String STORAGE_CREDENTIALS_NULL_OR_ANONYMOUS = "StorageCredentials cannot be null or anonymous for this service.";
     public static final String STORAGE_CLIENT_OR_SAS_REQUIRED = "Either a SAS token or a service client must be specified.";
     public static final String STORAGE_URI_MISSING_LOCATION = "The URI for the target storage location is not specified. Please consider changing the request's location mode.";
     public static final String STORAGE_URI_MUST_MATCH = "Primary and secondary location URIs in a StorageUri must point to the same resource.";

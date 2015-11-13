@@ -1,3 +1,67 @@
+2015.10.05 Version 4.0.0
+ * Removed deprecated table AtomPub support.
+ * Removed deprecated constructors which take service clients in favor of constructors which take credentials.
+ * Added support for "Add" permissions on Blob SAS.
+ * Added support for "Create" permissions on Blob and File SAS.
+ * Added support for IP Restricted SAS and Protocol SAS.
+ * Added support for Account SAS to all services.
+ * Added support for Minute and Hour Metrics to FileServiceProperties and added support for File Metrics to CloudAnalyticsClient.
+ * Removed deprecated startCopyFromBlob() on CloudBlob. Use startCopy() instead.
+ * Removed deprecated Credentials and StorageKey classes. Please use the appropriate methods on StorageCredentialsAccountAndKey instead.
+
+2015.09.16 Version 3.1.0
+ * Fixed a bug in table where a select on a non-existent field resulted in a null reference exception if the corresponding field in the TableEntity was not nullable.
+ * Fixed a bug in table where JsonParser was automatically closing the response stream before it was completely drained causing socket exhaustion.
+ * Fixed a bug in StorageCredentialsAccountAndKey.updateKey(String) which prevented valid keys from being set.
+ * Added CloudBlobContainer.listBlobs(final String, final boolean) method.
+ * Fixed a bug in blob where using AccessConditions on block blob uploads larger than 64MB done with the upload* methods or block blob uploads done openOutputStream with would fail if the blob did not already exist.
+ * Added support for setting a proxy per request. Proxy can be set on an OperationContext instance and will be used when that instance is passed to the request method.
+
+2015.08.04 Version 3.0.0
+ * Added support for SAS to the Azure File service.
+ * Added support for Append Blob.
+ * Added support for Access Control Lists (ACL) to File Shares.
+ * Added support for getting and setting of CORS rules to File service.
+ * Added support for ShareStats to File Shares.
+ * Added support for copying an Azure File to another Azure File or a Block Blob asynchronously, and aborting Azure File copy operations asynchronously.
+ * Added support for copying a Blob to an Azure File asynchronously.
+ * Added support for setting a maximum quota property on a File Share.
+ * Removed deprecated AuthenticationScheme and its getter and setter. In the future only SharedKey will be used.
+ * Removed deprecated getter/setters for all request option properties on the service clients. Please use the default request options getter/setters instead.
+ * Removed getSubDirectoryReference() for blob directories and file directories. Use getDirectoryReference() instead. 
+ * Removed getEntityClass() in TableQuery. Please use getClazzType() instead.
+ * Added client-side verification for lease duration and break periods.
+ * Deprecated the setters in table for timestamp as this property is only modifiable by the service.
+ * Deprecated startCopyFromBlob() on CloudBlob. Use startCopy() instead.
+ * Deprecated the Credentials and StorageKey classes. Please use the appropriate methods on StorageCredentialsAccountAndKey instead.
+ * Deprecated constructors which take service clients in favor of constructors which take credentials.
+ * Fixed a bug where the DateBackwardCompatibility flag was not applied if set on the CloudTableClient default request options.
+ * Changed library behavior to retry all exceptions thrown when parsing a response object.
+ * Changed behavior to stop removing query parameters passed in with the resource URI if that URI contains a SAS token. Some query parameters such as comp, restype, snapshot and api-version will still be removed.
+ * Added support for logging StringToSign to SharedKey and SAS.
+ * Added a connect timeout to prevent hangs when establishing the network connection.
+ * Made performance enhancements to the BlobOutputStream class.
+
+2015.05.26 Version 2.2.0
+ * Fixed a bug where maximum execution time was ignored for file, queue, and table services.
+ * Changed the socket timeout to be set to the service side timeout plus 5 minutes when maximum execution time is not set.
+ * Changed the socket timeout to default to 5 minutes rather than infinite when neither service side timeout or maximum execution time are set.
+ * Fixed a bug where MD5 was calculated for commitBlockList even though UseTransactionalMD5 was set to false.
+ * Fixed a bug where selecting fields that did not exist returned an error rather than an EntityProperty with a null value.
+ * Fixed a bug where table entities with a single quote in their partition or row key could be inserted but not operated on in any other way.
+
+2015.04.01 Version 2.1.0
+ * Fixed a bug for all listing API's where next() would sometimes throw an exception if hasNext() had not been called even if there were more elements to iterate on.
+ * Added sequence number to the blob properties. This is populated for page blobs.
+ * Creating a page blob sets its length property.
+ * Added support for page blob sequence numbers and sequence number access conditions. 
+ * Fixed a bug in abort copy where the lease access condition was not sent to the service.
+ * Fixed an issue in startCopyFromBlob where if the URI of the source blob contained certain non-ASCII characters they would not be encoded appropriately. This would result in Authorization failures.
+ * Fixed a small performance issue in XML serialization.
+ * Fixed a bug in BlobOutputStream and FileOutputStream where flush added data to a request pool rather than immediately committing it to the Azure service.
+ * Refactored to remove the blob, queue, and file package dependency on table in the error handling code.
+ * Added additional client-side logging for REST requests, responses, and errors.
+
 2014.12.20 Version 2.0.0
  * Deprecated getSubDirectoryReference() for blob directories and file directories. Use getDirectoryReference() instead. 
  * Fixed a bug where maxResults was not verified to be positive for list operations.

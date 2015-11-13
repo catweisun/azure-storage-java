@@ -24,7 +24,7 @@ import com.microsoft.azure.storage.StorageException;
  * RESERVED FOR INTERNAL USE. Provides an implementation of the Canonicalizer class for requests against Table
  * Service under the Shared Key authentication scheme.
  */
-final class TableFullCanonicalizer extends Canonicalizer {
+final class TableCanonicalizer extends Canonicalizer {
 
     /**
      * Constructs a canonicalized string for signing a request.
@@ -39,7 +39,8 @@ final class TableFullCanonicalizer extends Canonicalizer {
      * @throws StorageException
      */
     @Override
-    protected String canonicalize(final HttpURLConnection conn, final String accountName, final Long contentLength) throws StorageException {
+    protected String canonicalize(final HttpURLConnection conn, final String accountName, final Long contentLength)
+            throws StorageException {
 
         if (contentLength < -1) {
             throw new InvalidParameterException(SR.INVALID_CONTENT_LENGTH);

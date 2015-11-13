@@ -41,11 +41,6 @@ abstract class Canonicalizer {
     private static final int ExpectedBlobQueueCanonicalizedStringLength = 300;
 
     /**
-     * The expected length for the canonicalized string when SharedKeyLite is used to sign requests.
-     */
-    private static final int ExpectedBlobQueueLiteCanonicalizedStringLength = 250;
-
-    /**
      * The expected length for the canonicalized string when SharedKeyFull is used to sign table requests.
      */
     private static final int ExpectedTableCanonicalizedStringLength = 200;
@@ -156,7 +151,7 @@ abstract class Canonicalizer {
         appendCanonicalizedElement(canonicalizedString,
                 Utility.getStandardHeaderValue(conn, Constants.HeaderConstants.CONTENT_LANGUAGE));
         appendCanonicalizedElement(canonicalizedString,
-                contentLength == -1 ? Constants.EMPTY_STRING : String.valueOf(contentLength));
+                contentLength <= 0 ? Constants.EMPTY_STRING : String.valueOf(contentLength));
         appendCanonicalizedElement(canonicalizedString,
                 Utility.getStandardHeaderValue(conn, Constants.HeaderConstants.CONTENT_MD5));
         appendCanonicalizedElement(canonicalizedString, contentType != null ? contentType : Constants.EMPTY_STRING);
@@ -180,60 +175,6 @@ abstract class Canonicalizer {
         addCanonicalizedHeaders(conn, canonicalizedString);
 
         appendCanonicalizedElement(canonicalizedString, getCanonicalizedResource(address, accountName));
-
-        return canonicalizedString.toString();
-    }
-
-    /**
-     * Constructs a canonicalized string from the request's headers that will be used to construct the signature string
-     * for signing a Blob or Queue service request under the Shared Key Lite authentication scheme.
-     * 
-     * @param address
-     *            the request URI
-     * @param accountName
-     *            the account name associated with the request
-     * @param method
-     *            the verb to be used for the HTTP request.
-     * @param contentType
-     *            the content type of the HTTP request.
-     * @param contentLength
-     *            the length of the content written to the outputstream in bytes, -1 if unknown
-     * @param date
-     *            the date/time specification for the HTTP request
-     * @param conn
-     *            the HttpURLConnection for the operation.
-     * @return A canonicalized string.
-     * @throws StorageException
-     */
-    protected static String canonicalizeHttpRequestLite(final java.net.URL address, final String accountName,
-            final String method, final String contentType, final long contentLength, final String date,
-            final HttpURLConnection conn) throws StorageException {
-        // The first element should be the Method of the request.
-        // I.e. GET, POST, PUT, or HEAD.
-        // 
-        final StringBuilder canonicalizedString = new StringBuilder(ExpectedBlobQueueLiteCanonicalizedStringLength);
-        canonicalizedString.append(conn.getRequestMethod());
-
-        // The second element should be the MD5 value.
-        // This is optional and may be empty.
-        final String httpContentMD5Value = Utility.getStandardHeaderValue(conn, Constants.HeaderConstants.CONTENT_MD5);
-        appendCanonicalizedElement(canonicalizedString, httpContentMD5Value);
-
-        // The third element should be the content type.
-        appendCanonicalizedElement(canonicalizedString, contentType);
-
-        // The fourth element should be the request date.
-        // See if there's an storage date header.
-        // If there's one, then don't use the date header.
-
-        final String dateString = Utility.getStandardHeaderValue(conn, Constants.HeaderConstants.DATE);
-        // If x-ms-date header exists, Date should be empty string
-        appendCanonicalizedElement(canonicalizedString, dateString.equals(Constants.EMPTY_STRING) ? date
-                : Constants.EMPTY_STRING);
-
-        addCanonicalizedHeaders(conn, canonicalizedString);
-
-        appendCanonicalizedElement(canonicalizedString, getCanonicalizedResourceLite(address, accountName));
 
         return canonicalizedString.toString();
     }
@@ -330,8 +271,8 @@ abstract class Canonicalizer {
             }
 
             // key turns out to be null for ?a&b&c&d
-            lowercasedKeyNameValue.put(entry.getKey() == null ? null : entry.getKey().toLowerCase(Utility.LOCALE_US),
-                    stringValue.toString());
+            lowercasedKeyNameValue.put((entry.getKey()) == null ? null :
+                entry.getKey().toLowerCase(Utility.LOCALE_US), stringValue.toString());
         }
 
         final ArrayList<String> sortedKeys = new ArrayList<String>(lowercasedKeyNameValue.keySet());
@@ -405,7 +346,7 @@ abstract class Canonicalizer {
      *            a one to many map of key / values representing the header values for the connection.
      * @param headerName
      *            the name of the header to lookup
-     * @return an ArrayList<String> of all trimmed values cooresponding to the requested headerName. This may be empty
+     * @return an ArrayList<String> of all trimmed values corresponding to the requested headerName. This may be empty
      *         if the header is not found.
      */
     private static ArrayList<String> getHeaderValues(final Map<String, List<String>> headers, final String headerName) {

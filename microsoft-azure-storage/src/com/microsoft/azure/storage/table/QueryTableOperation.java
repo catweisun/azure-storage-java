@@ -19,11 +19,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 
-import javax.xml.stream.XMLStreamException;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.microsoft.azure.storage.OperationContext;
 import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.StorageExtendedErrorInformation;
 import com.microsoft.azure.storage.core.ExecutionEngine;
 import com.microsoft.azure.storage.core.RequestLocationMode;
 import com.microsoft.azure.storage.core.SR;
@@ -126,8 +125,6 @@ public class QueryTableOperation extends TableOperation {
      * @return
      *         The {@link TableResult} representing the result of the query operation.
      * 
-     * @throws XMLStreamException
-     *             if an error occurs accessing the {@link InputStream} with AtomPub.
      * @throws InstantiationException
      *             if an error occurs in object construction.
      * @throws IllegalAccessException
@@ -141,8 +138,8 @@ public class QueryTableOperation extends TableOperation {
      */
     @Override
     protected TableResult parseResponse(final InputStream inStream, final int httpStatusCode, String etagFromHeader,
-            final OperationContext opContext, final TableRequestOptions options) throws XMLStreamException,
-            InstantiationException, IllegalAccessException, StorageException, JsonParseException, IOException {
+            final OperationContext opContext, final TableRequestOptions options) throws InstantiationException,
+            IllegalAccessException, StorageException, JsonParseException, IOException {
         TableResult res = TableDeserializer.parseSingleOpResponse(inStream, options, httpStatusCode,
                 this.getClazzType(), this.getResolver(), opContext);
         res.setEtag(etagFromHeader);
@@ -205,7 +202,7 @@ public class QueryTableOperation extends TableOperation {
                 return TableRequest
                         .query(client.getTransformedEndPoint(context).getUri(this.getCurrentLocation()), options,
                                 null/* Query Builder */, context, tableName,
-                                generateRequestIdentity(isTableEntry, operation.getPartitionKey(), false), null/* Continuation Token */);
+                                generateRequestIdentity(isTableEntry, operation.getPartitionKey()), null/* Continuation Token */);
             }
 
             @Override
@@ -240,6 +237,10 @@ public class QueryTableOperation extends TableOperation {
                 return res;
             }
 
+            @Override
+            public StorageExtendedErrorInformation parseErrorDetails() {
+                return TableStorageErrorDeserializer.parseErrorDetails(this);
+            }
         };
 
         return getRequest;

@@ -17,6 +17,7 @@ package com.microsoft.azure.storage.core;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.net.HttpURLConnection;
@@ -34,12 +35,17 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TimeZone;
 import java.util.concurrent.TimeoutException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import org.xml.sax.SAXException;
 
@@ -48,13 +54,10 @@ import com.microsoft.azure.storage.OperationContext;
 import com.microsoft.azure.storage.RequestOptions;
 import com.microsoft.azure.storage.ResultContinuation;
 import com.microsoft.azure.storage.ResultContinuationType;
-import com.microsoft.azure.storage.StorageCredentials;
-import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
-import com.microsoft.azure.storage.StorageCredentialsAnonymous;
-import com.microsoft.azure.storage.StorageCredentialsSharedAccessSignature;
 import com.microsoft.azure.storage.StorageErrorCode;
 import com.microsoft.azure.storage.StorageErrorCodeStrings;
 import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.StorageExtendedErrorInformation;
 
 /**
  * RESERVED FOR INTERNAL USE. A class which provides utility methods.
@@ -105,7 +108,12 @@ public final class Utility {
     /**
      * A factory to create SAXParser instances.
      */
-    private static final SAXParserFactory factory = SAXParserFactory.newInstance();
+    private static final SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
+
+    /**
+     * A factory to create XMLStreamWriter instances.
+     */
+    private static final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
 
     /**
      * Stores a reference to the date/time pattern with the greatest precision Java.util.Date is capable of expressing.
@@ -208,42 +216,6 @@ public final class Utility {
         }
 
         return retVal;
-    }
-
-    /**
-     * Returns a value that indicates whether the specified credentials are equal.
-     * 
-     * @param thisCred
-     *            An object derived from {@link StorageCredentials} that represents the first set of credentials being
-     *            compared for equality.
-     * @param thatCred
-     *            An object derived from <code>StorageCredentials</code> that represents the second set of credentials
-     *            being compared for equality.
-     * 
-     * @return <code>true</code> if the credentials are equal; otherwise, <code>false</code>.
-     */
-    public static boolean areCredentialsEqual(final StorageCredentials thisCred, final StorageCredentials thatCred) {
-        if (thisCred == thatCred) {
-            return true;
-        }
-
-        if (thatCred == null || thisCred.getClass() != thatCred.getClass()) {
-            return false;
-        }
-
-        if (thisCred instanceof StorageCredentialsAccountAndKey) {
-            return ((StorageCredentialsAccountAndKey) thisCred).toString(true).equals(
-                    ((StorageCredentialsAccountAndKey) thatCred).toString(true));
-        }
-        else if (thisCred instanceof StorageCredentialsSharedAccessSignature) {
-            return ((StorageCredentialsSharedAccessSignature) thisCred).getToken().equals(
-                    ((StorageCredentialsSharedAccessSignature) thatCred).getToken());
-        }
-        else if (thisCred instanceof StorageCredentialsAnonymous) {
-            return true;
-        }
-
-        return thisCred.equals(thatCred);
     }
 
     /**
@@ -367,15 +339,17 @@ public final class Utility {
     }
 
     /**
-     * Returns a value representing the remaining time before the operation expires. 0 represents an infinite timeout.
+     * Returns a value representing the remaining time before the operation expires.
      * 
      * @param operationExpiryTimeInMs
      *            the time the request expires
-     * @return the remaining time before the operation expires, or 0 to represent an infinite timeout
+     * @param timeoutIntervalInMs
+     *            the server side timeout interval
+     * @return the remaining time before the operation expires
      * @throws StorageException
      *             wraps a TimeoutException if there is no more time remaining
      */
-    public static int getRemainingTimeout(Long operationExpiryTimeInMs) throws StorageException {
+    public static int getRemainingTimeout(Long operationExpiryTimeInMs, Integer timeoutIntervalInMs) throws StorageException {
         if (operationExpiryTimeInMs != null) {
             long remainingTime = operationExpiryTimeInMs - new Date().getTime();
             if (remainingTime > Integer.MAX_VALUE) {
@@ -392,9 +366,11 @@ public final class Utility {
                 throw translatedException;
             }
         }
+        else if (timeoutIntervalInMs != null) {
+            return timeoutIntervalInMs + Constants.DEFAULT_READ_TIMEOUT;
+        }
         else {
-            // represents an infinite timeout
-            return 0;
+            return Constants.DEFAULT_READ_TIMEOUT;
         }
     }
 
@@ -473,24 +449,6 @@ public final class Utility {
     }
 
     /**
-     * Returns a byte array that represents the data of a <code>long</code> value.
-     * 
-     * @param value
-     *            The value from which the byte array will be returned.
-     * 
-     * @return A byte array that represents the data of the specified <code>long</code> value.
-     */
-    public static byte[] getBytesFromLong(final long value) {
-        final byte[] tempArray = new byte[8];
-
-        for (int m = 0; m < 8; m++) {
-            tempArray[7 - m] = (byte) ((value >> (8 * m)) & 0xFF);
-        }
-
-        return tempArray;
-    }
-
-    /**
      * Returns the current GMT date/time String using the RFC1123 pattern.
      * 
      * @return A <code>String</code> that represents the current GMT date/time using the RFC1123 pattern.
@@ -542,8 +500,8 @@ public final class Utility {
      * @throws SAXException
      */
     public static SAXParser getSAXParser() throws ParserConfigurationException, SAXException {
-        factory.setNamespaceAware(true);
-        return factory.newSAXParser();
+        saxParserFactory.setNamespaceAware(true);
+        return saxParserFactory.newSAXParser();
     }
     
     /**
@@ -584,6 +542,19 @@ public final class Utility {
         iso8601Format.setTimeZone(UTC_ZONE);
 
         return iso8601Format.format(value);
+    }
+
+    /**
+     * Returns a <code>XMLStreamWriter</code> with the specified <code>StringWriter</code>.
+     * 
+     * @param outWriter
+     *            The <code>StringWriter</code> to use to create the <code>XMLStreamWriter</code> instance.
+     * @return A <code>XMLStreamWriter</code> instance
+     * 
+     * @throws XMLStreamException
+     */
+    public static XMLStreamWriter createXMLStreamWriter(StringWriter outWriter) throws XMLStreamException {
+        return xmlOutputFactory.createXMLStreamWriter(outWriter);
     }
 
     /**
@@ -877,6 +848,135 @@ public final class Utility {
             }
 
             return sb.toString();
+        }
+    }
+
+    /**
+     * Serializes the parsed StorageException. If an exception is encountered, returns empty string.
+     * 
+     * @param ex
+     *            The StorageException to serialize.
+     * @param opContext 
+     *            The operation context which provides the logger.
+     */
+    public static void logHttpError(StorageException ex, OperationContext opContext) {
+        if (Logger.shouldLog(opContext)) {
+            try {
+                StringBuilder bld = new StringBuilder();
+                bld.append("Error response received. ");
+    
+                bld.append("HttpStatusCode= ");
+                bld.append(ex.getHttpStatusCode());
+                
+                bld.append(", HttpStatusMessage= ");
+                bld.append(ex.getMessage());
+    
+                bld.append(", ErrorCode= ");
+                bld.append(ex.getErrorCode());
+    
+                StorageExtendedErrorInformation extendedError = ex.getExtendedErrorInformation();
+                if (extendedError != null) {
+                    bld.append(", ExtendedErrorInformation= {ErrorMessage= ");
+                    bld.append(extendedError.getErrorMessage());
+    
+                    HashMap<String, String[]> details = extendedError.getAdditionalDetails();
+                    if (details != null) {
+                        bld.append(", AdditionalDetails= { ");
+                        for (Entry<String, String[]> detail : details.entrySet()) {
+                            bld.append(detail.getKey());
+                            bld.append("= ");
+    
+                            for (String value : detail.getValue()) {
+                                bld.append(value);
+                            }
+                            bld.append(",");
+                        }
+                        bld.setCharAt(bld.length() - 1, '}');
+                    }
+                    bld.append("}");
+                }
+    
+                Logger.debug(opContext, bld.toString());
+            } catch (Exception e) {
+                // Do nothing
+            }
+        }
+    }
+
+    /**
+     * Logs the HttpURLConnection request. If an exception is encountered, logs nothing.
+     * 
+     * @param conn
+     *            The HttpURLConnection to serialize.
+     * @param opContext 
+     *            The operation context which provides the logger.
+     */
+    public static void logHttpRequest(HttpURLConnection conn, OperationContext opContext) throws IOException {
+        if (Logger.shouldLog(opContext)) {
+            try {
+                StringBuilder bld = new StringBuilder();
+    
+                bld.append(conn.getRequestMethod());
+                bld.append(" ");
+                bld.append(conn.getURL());
+                bld.append("\n");
+    
+                // The Authorization header will not appear due to a security feature in HttpURLConnection
+                for (Map.Entry<String, List<String>> header : conn.getRequestProperties().entrySet()) {
+                    if (header.getKey() != null) {
+                        bld.append(header.getKey());
+                        bld.append(": ");
+                    }
+    
+                    for (int i = 0; i < header.getValue().size(); i++) {
+                        bld.append(header.getValue().get(i));
+                        if (i < header.getValue().size() - 1) {
+                            bld.append(",");
+                        }
+                    }
+                    bld.append('\n');
+                }
+    
+                Logger.trace(opContext, bld.toString());
+            } catch (Exception e) {
+                // Do nothing
+            }
+        }
+    }
+
+    /**
+     * Logs the HttpURLConnection response. If an exception is encountered, logs nothing.
+     * 
+     * @param conn
+     *            The HttpURLConnection to serialize.
+     * @param opContext 
+     *            The operation context which provides the logger.
+     */
+    public static void logHttpResponse(HttpURLConnection conn, OperationContext opContext) throws IOException {
+        if (Logger.shouldLog(opContext)) {
+            try {
+                StringBuilder bld = new StringBuilder();
+    
+                // This map's null key will contain the response code and message
+                for (Map.Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
+                    if (header.getKey() != null) {
+                        bld.append(header.getKey());
+                        bld.append(": ");
+                    }
+    
+                    for (int i = 0; i < header.getValue().size(); i++) {
+                        bld.append(header.getValue().get(i));
+                        if (i < header.getValue().size() - 1) {
+                            bld.append(",");
+                        }
+                    }
+                    bld.append('\n');
+                }
+    
+                Logger.trace(opContext, bld.toString());
+            } catch (Exception e) {
+                // Do nothing
+            }
         }
     }
 

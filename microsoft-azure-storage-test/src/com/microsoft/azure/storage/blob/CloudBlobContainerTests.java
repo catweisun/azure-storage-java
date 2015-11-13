@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.EnumSet;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.UUID;
@@ -241,8 +242,8 @@ public class CloudBlobContainerTests {
      */
     @Test
     @Category({ SlowTests.class, DevFabricTests.class, DevStoreTests.class })
-    public void testCloudBlobContainerSetPermissions() throws StorageException, InterruptedException,
-            URISyntaxException {
+    public void testCloudBlobContainerSetPermissions()
+            throws StorageException, InterruptedException, URISyntaxException {
         CloudBlobClient client = BlobTestHelper.createCloudBlobClient();
         this.container.create();
 
@@ -250,16 +251,14 @@ public class CloudBlobContainerTests {
         assertTrue(BlobContainerPublicAccessType.OFF.equals(permissions.getPublicAccess()));
         assertEquals(0, permissions.getSharedAccessPolicies().size());
 
-        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
-        cal = new GregorianCalendar(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DATE),
-                cal.get(Calendar.HOUR), cal.get(Calendar.MINUTE));
-        Date start = cal.getTime();
+        final Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+        final Date start = cal.getTime();
         cal.add(Calendar.MINUTE, 30);
-        Date expiry = cal.getTime();
+        final Date expiry = cal.getTime();
 
         permissions.setPublicAccess(BlobContainerPublicAccessType.CONTAINER);
         SharedAccessBlobPolicy policy = new SharedAccessBlobPolicy();
-        policy.setPermissions(EnumSet.of(SharedAccessBlobPermissions.LIST));
+        policy.setPermissions(EnumSet.of(SharedAccessBlobPermissions.LIST, SharedAccessBlobPermissions.CREATE));
         policy.setSharedAccessStartTime(start);
         policy.setSharedAccessExpiryTime(expiry);
         permissions.getSharedAccessPolicies().put("key1", policy);
@@ -287,14 +286,18 @@ public class CloudBlobContainerTests {
     @Test
     @Category({ DevFabricTests.class, DevStoreTests.class })
     public void testCloudBlobContainerPermissionsFromString() {
-        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
-        Date start = cal.getTime();
-        cal.add(Calendar.MINUTE, 30);
-        Date expiry = cal.getTime();
-
         SharedAccessBlobPolicy policy = new SharedAccessBlobPolicy();
-        policy.setSharedAccessStartTime(start);
-        policy.setSharedAccessExpiryTime(expiry);
+
+        policy.setPermissionsFromString("racwdl");
+        assertEquals(EnumSet.of(
+                SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.ADD, SharedAccessBlobPermissions.CREATE,
+                SharedAccessBlobPermissions.WRITE, SharedAccessBlobPermissions.DELETE, SharedAccessBlobPermissions.LIST),
+                policy.getPermissions());
+
+        policy.setPermissionsFromString("rawdl");
+        assertEquals(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.ADD,
+                SharedAccessBlobPermissions.WRITE, SharedAccessBlobPermissions.DELETE, SharedAccessBlobPermissions.LIST),
+                policy.getPermissions());
 
         policy.setPermissionsFromString("rwdl");
         assertEquals(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.WRITE,
@@ -318,14 +321,16 @@ public class CloudBlobContainerTests {
     @Test
     @Category({ DevFabricTests.class, DevStoreTests.class })
     public void testCloudBlobContainerPermissionsToString() {
-        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
-        Date start = cal.getTime();
-        cal.add(Calendar.MINUTE, 30);
-        Date expiry = cal.getTime();
-
         SharedAccessBlobPolicy policy = new SharedAccessBlobPolicy();
-        policy.setSharedAccessStartTime(start);
-        policy.setSharedAccessExpiryTime(expiry);
+
+        policy.setPermissions(EnumSet.of(
+                SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.ADD, SharedAccessBlobPermissions.CREATE,
+                SharedAccessBlobPermissions.WRITE, SharedAccessBlobPermissions.DELETE, SharedAccessBlobPermissions.LIST));
+        assertEquals("racwdl", policy.permissionsToString());
+
+        policy.setPermissions(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.ADD,
+                SharedAccessBlobPermissions.WRITE, SharedAccessBlobPermissions.DELETE, SharedAccessBlobPermissions.LIST));
+        assertEquals("rawdl", policy.permissionsToString());
 
         policy.setPermissions(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.WRITE,
                 SharedAccessBlobPermissions.DELETE, SharedAccessBlobPermissions.LIST));
@@ -465,6 +470,76 @@ public class CloudBlobContainerTests {
     }
     
     /**
+     * List the blobs in a container with a prefix
+     * 
+     * @throws URISyntaxException
+     * @throws StorageException
+     * @throws IOException
+     */
+    @Test
+    @Category({ DevFabricTests.class, DevStoreTests.class })
+    public void testCloudBlobContainerListBlobsPrefix() throws StorageException, IOException, URISyntaxException {
+        this.container.create();
+        int numBlobs = 2;
+        List<String> blobNames = BlobTestHelper
+                .uploadNewBlobs(this.container, BlobType.BLOCK_BLOB, numBlobs, 128, null);
+
+        BlobTestHelper.uploadNewBlob(this.container, BlobType.BLOCK_BLOB, "pref/blob1", 128, null);
+        blobNames.add("pref/blob1");
+        
+        BlobTestHelper.uploadNewBlob(this.container, BlobType.BLOCK_BLOB, "pref/blob2", 128, null);
+        blobNames.add("pref/blob2");
+
+        // Flat listing false
+        int count = 0;
+        for (ListBlobItem blob : this.container.listBlobs("pref")) {
+            assertEquals(CloudBlobDirectory.class, blob.getClass());
+            assertTrue(((CloudBlobDirectory)blob).getPrefix().startsWith("pref"));
+            count++;
+        }
+        assertEquals(1, count);
+        
+        // Flat listing true
+        count = 0;
+        for (ListBlobItem blob : this.container.listBlobs("pref", true)) {
+            assertEquals(CloudBlockBlob.class, blob.getClass());
+            assertTrue(((CloudBlockBlob)blob).getName().startsWith("pref/blob"));
+            count++;
+        }
+        assertEquals(2, count);
+    }
+    
+    /**
+     * List the blobs in a container with next(). This tests for the item in the changelog: "Fixed a bug for all 
+     * listing API's where next() would sometimes throw an exception if hasNext() had not been called even if 
+     * there were more elements to iterate on."
+     * 
+     * @throws URISyntaxException
+     * @throws StorageException
+     * @throws IOException
+     */
+    @Test
+    @Category({ DevFabricTests.class, DevStoreTests.class })
+    public void testCloudBlobContainerListBlobsNext() throws StorageException, IOException, URISyntaxException {
+        this.container.create();
+        
+        int numBlobs = 10;
+        List<String> blobNames = BlobTestHelper.uploadNewBlobs(this.container, BlobType.PAGE_BLOB, 10, 512, null);
+        assertEquals(numBlobs, blobNames.size());
+
+        // hasNext first
+        Iterator<ListBlobItem> iter = this.container.listBlobs().iterator();
+        iter.hasNext();
+        iter.next();
+        iter.next();
+        
+        // next without hasNext
+        iter = this.container.listBlobs().iterator();
+        iter.next();
+        iter.next();
+    }
+    
+    /**
      * Try to list the blobs in a container to ensure maxResults validation is working.
      * 
      * @throws URISyntaxException
@@ -514,12 +589,12 @@ public class CloudBlobContainerTests {
         // leased blob
         CloudBlockBlob leasedBlob = (CloudBlockBlob) BlobTestHelper.uploadNewBlob(this.container, BlobType.BLOCK_BLOB,
                 "originalBlobLeased", length, null);
-        leasedBlob.acquireLease(null, null);
+        leasedBlob.acquireLease();
 
         // copy of regular blob
         CloudBlockBlob copyBlob = this.container.getBlockBlobReference(BlobTestHelper
                 .generateRandomBlobNameWithPrefix("originalBlobCopy"));
-        copyBlob.startCopyFromBlob(originalBlob);
+        copyBlob.startCopy(originalBlob);
         BlobTestHelper.waitForCopy(copyBlob);
 
         // snapshot of regular blob
@@ -528,7 +603,7 @@ public class CloudBlobContainerTests {
         // snapshot of the copy of the regular blob
         CloudBlockBlob copySnapshot = this.container.getBlockBlobReference(BlobTestHelper
                 .generateRandomBlobNameWithPrefix("originalBlobSnapshotCopy"));
-        copySnapshot.startCopyFromBlob(copyBlob);
+        copySnapshot.startCopy(copyBlob);
         BlobTestHelper.waitForCopy(copySnapshot);
 
         int count = 0;
@@ -564,7 +639,7 @@ public class CloudBlobContainerTests {
      */
     @Test
     @Category({ DevFabricTests.class, DevStoreTests.class })
-    public void testCloudBlobContainerSharedKeyLite() throws StorageException, InterruptedException {
+    public void testCloudBlobContainerSharedKey() throws StorageException, InterruptedException {
         BlobContainerPermissions expectedPermissions;
         BlobContainerPermissions testPermissions;
 
@@ -587,7 +662,7 @@ public class CloudBlobContainerTests {
         now.add(Calendar.MINUTE, 10);
         policy1.setSharedAccessExpiryTime(now.getTime());
 
-        policy1.setPermissions(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.DELETE,
+        policy1.setPermissions(EnumSet.of(SharedAccessBlobPermissions.READ, SharedAccessBlobPermissions.CREATE,
                 SharedAccessBlobPermissions.LIST, SharedAccessBlobPermissions.DELETE));
         expectedPermissions.getSharedAccessPolicies().put(UUID.randomUUID().toString(), policy1);
 

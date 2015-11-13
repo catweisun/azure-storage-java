@@ -30,6 +30,8 @@ import com.microsoft.azure.storage.TestRunners.DevStoreTests;
 import com.microsoft.azure.storage.TestRunners.SlowTests;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import com.microsoft.azure.storage.core.SR;
+import com.microsoft.azure.storage.file.CloudFileClient;
+import com.microsoft.azure.storage.file.FileServiceProperties;
 import com.microsoft.azure.storage.queue.CloudQueueClient;
 import com.microsoft.azure.storage.table.CloudTableClient;
 
@@ -74,7 +76,7 @@ public class ServicePropertiesTests {
 
         props.getCors().getCorsRules().clear();
 
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
     }
@@ -105,29 +107,29 @@ public class ServicePropertiesTests {
             throws StorageException, InterruptedException {
         if (client.getClass().equals(CloudBlobClient.class)) {
             props.setDefaultServiceVersion("2009-09-19");
-            callUploadServiceProps(client, props);
+            callUploadServiceProps(client, props, null);
 
             assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
             props.setDefaultServiceVersion("2011-08-18");
-            callUploadServiceProps(client, props);
+            callUploadServiceProps(client, props, null);
 
             assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
             props.setDefaultServiceVersion("2012-02-12");
-            callUploadServiceProps(client, props);
+            callUploadServiceProps(client, props, null);
 
             assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
             props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-            callUploadServiceProps(client, props);
+            callUploadServiceProps(client, props, null);
 
             assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
         }
         else {
             try {
                 props.setDefaultServiceVersion("2009-09-19");
-                callUploadServiceProps(client, props);
+                callUploadServiceProps(client, props, null);
                 fail("Should not be able to set default Service Version for non Blob Client");
             }
             catch (IllegalArgumentException e) {
@@ -168,13 +170,13 @@ public class ServicePropertiesTests {
         props.getLogging().setRetentionIntervalInDays(null);
         props.getLogging().setVersion("1.0");
 
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
         // None
         props.getLogging().setLogOperationTypes(EnumSet.allOf(LoggingOperations.class));
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
     }
@@ -186,42 +188,65 @@ public class ServicePropertiesTests {
      * @throws InterruptedException
      */
     @Test
-    public void testAnalyticsMetricsLevel() throws StorageException, InterruptedException {
+    public void testAnalyticsHourMetricsLevel() throws StorageException, InterruptedException {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testAnalyticsMetricsLevel(client, props);
+        testAnalyticsHourMetricsLevel(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testAnalyticsMetricsLevel(client, props);
+        testAnalyticsHourMetricsLevel(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testAnalyticsMetricsLevel(client, props);
+        testAnalyticsHourMetricsLevel(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        FileServiceProperties fileProps = new FileServiceProperties();
+        testAnalyticsHourMetricsLevel(client, null, fileProps);
     }
 
-    private void testAnalyticsMetricsLevel(ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
-        // None
-        props.getHourMetrics().setMetricsLevel(MetricsLevel.DISABLED);
-        props.getHourMetrics().setRetentionIntervalInDays(null);
-        props.getHourMetrics().setVersion("1.0");
-        callUploadServiceProps(client, props);
+    private void testAnalyticsHourMetricsLevel(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileProps)
+            throws StorageException, InterruptedException {
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        final MetricsProperties hours = (props == null) ? fileProps.getHourMetrics() : props.getHourMetrics();
+        
+        // None
+        hours.setMetricsLevel(MetricsLevel.DISABLED);
+        hours.setRetentionIntervalInDays(null);
+        hours.setVersion("1.0");
+        callUploadServiceProps(client, props, fileProps);
+
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
 
         // Service
-        props.getHourMetrics().setMetricsLevel(MetricsLevel.SERVICE);
-        callUploadServiceProps(client, props);
+        hours.setMetricsLevel(MetricsLevel.SERVICE);
+        callUploadServiceProps(client, props, fileProps);
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
 
         // ServiceAndAPI
-        props.getHourMetrics().setMetricsLevel(MetricsLevel.SERVICE_AND_API);
-        callUploadServiceProps(client, props);
+        hours.setMetricsLevel(MetricsLevel.SERVICE_AND_API);
+        callUploadServiceProps(client, props, fileProps);
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
     }
 
     /**
@@ -235,38 +260,61 @@ public class ServicePropertiesTests {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testAnalyticsMinuteMetricsLevel(client, props);
+        testAnalyticsMinuteMetricsLevel(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testAnalyticsMinuteMetricsLevel(client, props);
+        testAnalyticsMinuteMetricsLevel(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testAnalyticsMinuteMetricsLevel(client, props);
+        testAnalyticsMinuteMetricsLevel(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        FileServiceProperties fileProps = new FileServiceProperties();
+        testAnalyticsMinuteMetricsLevel(client, null, fileProps);
     }
 
-    private void testAnalyticsMinuteMetricsLevel(ServiceClient client, ServiceProperties props)
+    private void testAnalyticsMinuteMetricsLevel(
+            final ServiceClient client, final ServiceProperties props, final FileServiceProperties fileProps)
             throws StorageException, InterruptedException {
+        
+        final MetricsProperties minutes = (props == null) ? fileProps.getMinuteMetrics() : props.getMinuteMetrics();
+        
         // None
-        props.getMinuteMetrics().setMetricsLevel(MetricsLevel.DISABLED);
-        props.getMinuteMetrics().setRetentionIntervalInDays(null);
-        props.getMinuteMetrics().setVersion("1.0");
-        callUploadServiceProps(client, props);
+        minutes.setMetricsLevel(MetricsLevel.DISABLED);
+        minutes.setRetentionIntervalInDays(null);
+        minutes.setVersion("1.0");
+        callUploadServiceProps(client, props, fileProps);
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
 
         // Service
-        props.getMinuteMetrics().setMetricsLevel(MetricsLevel.SERVICE);
-        callUploadServiceProps(client, props);
+        minutes.setMetricsLevel(MetricsLevel.SERVICE);
+        callUploadServiceProps(client, props, fileProps);
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
 
         // ServiceAndAPI
-        props.getMinuteMetrics().setMetricsLevel(MetricsLevel.SERVICE_AND_API);
-        callUploadServiceProps(client, props);
+        minutes.setMetricsLevel(MetricsLevel.SERVICE_AND_API);
+        callUploadServiceProps(client, props, fileProps);
 
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (props == null) {
+            assertFileServicePropertiesAreEqual(fileProps, ((CloudFileClient) client).downloadServiceProperties());
+        }
+        else {
+            assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        }
     }
 
     /**
@@ -298,7 +346,7 @@ public class ServicePropertiesTests {
         props.getHourMetrics().setRetentionIntervalInDays(null);
         props.getMinuteMetrics().setMetricsLevel(MetricsLevel.DISABLED);
         props.getMinuteMetrics().setRetentionIntervalInDays(null);
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
@@ -307,7 +355,7 @@ public class ServicePropertiesTests {
         props.getHourMetrics().setMetricsLevel(MetricsLevel.SERVICE);
         props.getMinuteMetrics().setRetentionIntervalInDays(1);
         props.getMinuteMetrics().setMetricsLevel(MetricsLevel.SERVICE);
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
@@ -316,35 +364,35 @@ public class ServicePropertiesTests {
         props.getHourMetrics().setMetricsLevel(MetricsLevel.SERVICE_AND_API);
         props.getMinuteMetrics().setRetentionIntervalInDays(2);
         props.getMinuteMetrics().setMetricsLevel(MetricsLevel.SERVICE_AND_API);
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
         // Set retention policy null with logging disabled.
         props.getLogging().setRetentionIntervalInDays(null);
         props.getLogging().setLogOperationTypes(EnumSet.noneOf(LoggingOperations.class));
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
         // Set retention policy not null with logging disabled.
         props.getLogging().setRetentionIntervalInDays(3);
         props.getLogging().setLogOperationTypes(EnumSet.noneOf(LoggingOperations.class));
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
         // Set retention policy null with logging enabled.
         props.getLogging().setRetentionIntervalInDays(null);
         props.getLogging().setLogOperationTypes(EnumSet.allOf(LoggingOperations.class));
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
 
         // Set retention policy not null with logging enabled.
         props.getLogging().setRetentionIntervalInDays(4);
         props.getLogging().setLogOperationTypes(EnumSet.allOf(LoggingOperations.class));
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
     }
@@ -360,19 +408,23 @@ public class ServicePropertiesTests {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testCloudValidCorsRules(client, props);
+        testCloudValidCorsRules(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testCloudValidCorsRules(client, props);
+        testCloudValidCorsRules(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testCloudValidCorsRules(client, props);
+        testCloudValidCorsRules(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        testCloudValidCorsRules(client, null, new FileServiceProperties());
     }
 
-    private void testCloudValidCorsRules(ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
+    private void testCloudValidCorsRules(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileServiceProperties)
+            throws StorageException, InterruptedException {
         CorsRule ruleMinRequired = new CorsRule();
         ruleMinRequired.getAllowedOrigins().add("www.xyz.com");
         ruleMinRequired.getAllowedMethods().add(CorsHttpMethods.GET);
@@ -416,42 +468,42 @@ public class ServicePropertiesTests {
         ruleAllowAll.getAllowedHeaders().add("*");
         ruleAllowAll.getExposedHeaders().add("*");
 
-        this.testCorsRules(ruleBasic, client, props);
+        this.testCorsRules(ruleBasic, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleMinRequired, client, props);
+        this.testCorsRules(ruleMinRequired, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleAllMethods, client, props);
+        this.testCorsRules(ruleAllMethods, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleSingleExposedHeader, client, props);
+        this.testCorsRules(ruleSingleExposedHeader, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleSingleExposedPrefixHeader, client, props);
+        this.testCorsRules(ruleSingleExposedPrefixHeader, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleSingleAllowedHeader, client, props);
+        this.testCorsRules(ruleSingleAllowedHeader, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleSingleAllowedPrefixHeader, client, props);
+        this.testCorsRules(ruleSingleAllowedPrefixHeader, client, props, fileServiceProperties);
 
-        this.testCorsRules(ruleAllowAll, client, props);
+        this.testCorsRules(ruleAllowAll, client, props, fileServiceProperties);
 
         List<CorsRule> testList = new ArrayList<CorsRule>();
 
         // Empty rule set should delete all rules
-        this.testCorsRules(testList, client, props);
+        this.testCorsRules(testList, client, props, fileServiceProperties);
 
         // Test duplicate rules
         testList.add(ruleBasic);
         testList.add(ruleBasic);
-        this.testCorsRules(testList, client, props);
+        this.testCorsRules(testList, client, props, fileServiceProperties);
 
-        // Test max number of  rules (five)
+        // Test max number of rules (five)
         testList.clear();
         testList.add(ruleBasic);
         testList.add(ruleMinRequired);
         testList.add(ruleAllMethods);
         testList.add(ruleSingleExposedHeader);
         testList.add(ruleSingleExposedPrefixHeader);
-        this.testCorsRules(testList, client, props);
+        this.testCorsRules(testList, client, props, fileServiceProperties);
 
-        // Test max number of  rules (six)
+        // Test over max number of rules (six)
         testList.clear();
         testList.add(ruleBasic);
         testList.add(ruleMinRequired);
@@ -461,7 +513,7 @@ public class ServicePropertiesTests {
         testList.add(ruleSingleAllowedHeader);
 
         try {
-            this.testCorsRules(testList, client, props);
+            this.testCorsRules(testList, client, props, fileServiceProperties);
             fail("Expecting exception but no exception received. Services are limited to a maximum of five CORS rules.");
         }
         catch (StorageException e) {
@@ -479,18 +531,22 @@ public class ServicePropertiesTests {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testCorsExpectedExceptions(client, props);
+        testCorsExpectedExceptions(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testCorsExpectedExceptions(client, props);
+        testCorsExpectedExceptions(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testCorsExpectedExceptions(client, props);
+        testCorsExpectedExceptions(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        testCorsExpectedExceptions(client, null, new FileServiceProperties());
     }
 
-    private void testCorsExpectedExceptions(ServiceClient client, ServiceProperties props) {
+    private void testCorsExpectedExceptions(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileServiceProperties) {
         CorsRule ruleEmpty = new CorsRule();
 
         CorsRule ruleInvalidMaxAge = new CorsRule();
@@ -499,7 +555,7 @@ public class ServicePropertiesTests {
         ruleInvalidMaxAge.setMaxAgeInSeconds(-1);
 
         try {
-            this.testCorsRules(ruleEmpty, client, props);
+            this.testCorsRules(ruleEmpty, client, props, fileServiceProperties);
             fail("No exception received. A CORS rule must contain at least one allowed origin and allowed method.");
         }
         catch (StorageException e) {
@@ -513,7 +569,7 @@ public class ServicePropertiesTests {
         }
 
         try {
-            this.testCorsRules(ruleInvalidMaxAge, client, props);
+            this.testCorsRules(ruleInvalidMaxAge, client, props, fileServiceProperties);
             fail("No exception received. MaxAgeInSeconds cannot have a value less than 0.");
         }
         catch (StorageException e) {
@@ -538,19 +594,23 @@ public class ServicePropertiesTests {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testCorsMaxOrigins(client, props);
+        testCorsMaxOrigins(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testCorsMaxOrigins(client, props);
+        testCorsMaxOrigins(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testCorsMaxOrigins(client, props);
+        testCorsMaxOrigins(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        testCorsMaxOrigins(client, null, new FileServiceProperties());
     }
 
-    private void testCorsMaxOrigins(ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
+    private void testCorsMaxOrigins(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileServiceProperties)
+            throws StorageException, InterruptedException {
         CorsRule ruleManyOrigins = new CorsRule();
         ruleManyOrigins.getAllowedMethods().add(CorsHttpMethods.GET);
 
@@ -559,12 +619,12 @@ public class ServicePropertiesTests {
             ruleManyOrigins.getAllowedOrigins().add("www.xyz" + i + ".com");
         }
 
-        this.testCorsRules(ruleManyOrigins, client, props);
+        this.testCorsRules(ruleManyOrigins, client, props, fileServiceProperties);
 
         ruleManyOrigins.getAllowedOrigins().add("www.xyz64.com");
 
         try {
-            this.testCorsRules(ruleManyOrigins, client, props);
+            this.testCorsRules(ruleManyOrigins, client, props, fileServiceProperties);
             fail("No exception received. A maximum of 64 origins are allowed.");
         }
         catch (StorageException e) {
@@ -585,19 +645,23 @@ public class ServicePropertiesTests {
         ServiceClient client = TestHelper.createCloudBlobClient();
         ServiceProperties props = new ServiceProperties();
         props.setDefaultServiceVersion(Constants.HeaderConstants.TARGET_STORAGE_VERSION);
-        testCorsMaxHeaders(client, props);
+        testCorsMaxHeaders(client, props, null);
 
         client = TestHelper.createCloudQueueClient();
         props = new ServiceProperties();
-        testCorsMaxHeaders(client, props);
+        testCorsMaxHeaders(client, props, null);
 
         client = TestHelper.createCloudTableClient();
         props = new ServiceProperties();
-        testCorsMaxHeaders(client, props);
+        testCorsMaxHeaders(client, props, null);
+        
+        client = TestHelper.createCloudFileClient();
+        testCorsMaxHeaders(client, null, new FileServiceProperties());
     }
 
-    private void testCorsMaxHeaders(ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
+    private void testCorsMaxHeaders(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileServiceProperties)
+            throws StorageException, InterruptedException {
         CorsRule ruleManyHeaders = new CorsRule();
         ruleManyHeaders.getAllowedOrigins().add("www.xyz.com");
         ruleManyHeaders.getAllowedMethods().add(CorsHttpMethods.GET);
@@ -610,13 +674,13 @@ public class ServicePropertiesTests {
             ruleManyHeaders.getExposedHeaders().add("x-ms-meta-" + i);
         }
 
-        this.testCorsRules(ruleManyHeaders, client, props);
+        this.testCorsRules(ruleManyHeaders, client, props, fileServiceProperties);
 
         // Test with too many Exposed Headers (65)
         ruleManyHeaders.getExposedHeaders().add("x-ms-meta-toomany");
 
         try {
-            this.testCorsRules(ruleManyHeaders, client, props);
+            this.testCorsRules(ruleManyHeaders, client, props, fileServiceProperties);
             fail("No exception received. A maximum of 64 exposed headers are allowed.");
         }
         catch (StorageException e) {
@@ -631,7 +695,7 @@ public class ServicePropertiesTests {
         ruleManyHeaders.getAllowedHeaders().add("x-ms-meta-toomany");
 
         try {
-            this.testCorsRules(ruleManyHeaders, client, props);
+            this.testCorsRules(ruleManyHeaders, client, props, fileServiceProperties);
             fail("No exception received. A maximum of 64 allowed headers are allowed.");
         }
         catch (StorageException e) {
@@ -646,7 +710,7 @@ public class ServicePropertiesTests {
         ruleManyHeaders.getExposedHeaders().add("x-ms-meta-toomany*");
 
         try {
-            this.testCorsRules(ruleManyHeaders, client, props);
+            this.testCorsRules(ruleManyHeaders, client, props, fileServiceProperties);
             fail("No exception received. A maximum of 2 exposed headers are allowed.");
         }
         catch (StorageException e) {
@@ -661,7 +725,7 @@ public class ServicePropertiesTests {
         ruleManyHeaders.getAllowedHeaders().add("x-ms-meta-toomany*");
 
         try {
-            this.testCorsRules(ruleManyHeaders, client, props);
+            this.testCorsRules(ruleManyHeaders, client, props, fileServiceProperties);
             fail("No exception received. A maximum of 64 allowed headers are allowed.");
         }
         catch (StorageException e) {
@@ -714,7 +778,7 @@ public class ServicePropertiesTests {
 
         props.getCors().getCorsRules().clear();
 
-        callUploadServiceProps(client, props);
+        callUploadServiceProps(client, props, null);
 
         ServiceProperties newProps = new ServiceProperties();
 
@@ -732,7 +796,7 @@ public class ServicePropertiesTests {
         ruleBasic.setMaxAgeInSeconds(500);
         newProps.getCors().getCorsRules().add(ruleBasic);
 
-        callUploadServiceProps(client, newProps);
+        callUploadServiceProps(client, newProps, null);
 
         props.setCors(newProps.getCors());
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
@@ -741,31 +805,32 @@ public class ServicePropertiesTests {
         newProps.setHourMetrics(props.getHourMetrics());
         newProps.setMinuteMetrics(props.getMinuteMetrics());
         newProps.setCors(null);
-        callUploadServiceProps(client, newProps);
+        callUploadServiceProps(client, newProps, null);
 
         assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
     }
 
-    private void callUploadServiceProps(ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
+    private void callUploadServiceProps(
+            ServiceClient client, ServiceProperties props, FileServiceProperties fileProps)
+            throws StorageException, InterruptedException {
+        
         if (client.getClass().equals(CloudBlobClient.class)) {
-            CloudBlobClient blobClient = (CloudBlobClient) client;
-            blobClient.uploadServiceProperties(props);
-            Thread.sleep(30000);
+            ((CloudBlobClient) client).uploadServiceProperties(props);
         }
         else if (client.getClass().equals(CloudTableClient.class)) {
-            CloudTableClient tableClient = (CloudTableClient) client;
-            tableClient.uploadServiceProperties(props);
-            Thread.sleep(30000);
+            ((CloudTableClient) client).uploadServiceProperties(props);
         }
         else if (client.getClass().equals(CloudQueueClient.class)) {
-            CloudQueueClient queueClient = (CloudQueueClient) client;
-            queueClient.uploadServiceProperties(props);
-            Thread.sleep(30000);
+            ((CloudQueueClient) client).uploadServiceProperties(props);
+        }
+        else if (client.getClass().equals(CloudFileClient.class)) {
+            ((CloudFileClient) client).uploadServiceProperties(fileProps);
         }
         else {
             fail();
         }
+        
+        // Thread.sleep(30000);
     }
 
     private ServiceProperties callDownloadServiceProperties(ServiceClient client) throws StorageException {
@@ -789,58 +854,59 @@ public class ServicePropertiesTests {
 
     /**
      * Takes a CorsRule and tries to upload it. Then tries to download it and compares it to the initial CorsRule.
-     * 
-     * @param rule
-     * @param client
-     *            TODO
-     * @param props
-     *            TODO
-     * @throws StorageException
-     * @throws InterruptedException
      */
-    private void testCorsRules(CorsRule rule, ServiceClient client, ServiceProperties props) throws StorageException,
-            InterruptedException {
-        props.getCors().getCorsRules().clear();
-        props.getCors().getCorsRules().add(rule);
+    private void testCorsRules(CorsRule rule, ServiceClient client, ServiceProperties properties,
+            FileServiceProperties fileServiceProperties) throws StorageException, InterruptedException {
+        CorsProperties cors = (fileServiceProperties == null) ? properties.getCors() : fileServiceProperties.getCors();
+        cors.getCorsRules().clear();
+        cors.getCorsRules().add(rule);
 
-        callUploadServiceProps(client, props);
-
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (fileServiceProperties == null) {
+            callUploadServiceProps(client, properties, null);
+            assertServicePropertiesAreEqual(properties, callDownloadServiceProperties(client));
+        } else {
+            CloudFileClient fileClient = ((CloudFileClient) client);
+            fileClient.uploadServiceProperties(fileServiceProperties);
+            Thread.sleep(30000);
+            assertFileServicePropertiesAreEqual(fileServiceProperties, fileClient.downloadServiceProperties());
+        }
     }
 
     /**
      * Takes a List of CorsRules and tries to upload them. Then tries to download them and compares the list to the
      * initial CorsRule List.
-     * 
-     * @param client
-     *            TODO
-     * @param props
-     *            TODO
-     * @param rule
-     * 
-     * @throws StorageException
-     * @throws InterruptedException
      */
-    private void testCorsRules(List<CorsRule> corsRules, ServiceClient client, ServiceProperties props)
-            throws StorageException, InterruptedException {
-        props.getCors().getCorsRules().clear();
+    private void testCorsRules(List<CorsRule> corsRules, ServiceClient client, ServiceProperties properties,
+            FileServiceProperties fileServiceProperties) throws StorageException, InterruptedException {
+        CorsProperties cors = (fileServiceProperties == null) ? properties.getCors() : fileServiceProperties.getCors();
+        cors.getCorsRules().clear();
 
         for (CorsRule rule : corsRules) {
-            props.getCors().getCorsRules().add(rule);
+            cors.getCorsRules().add(rule);
         }
 
-        callUploadServiceProps(client, props);
-
-        assertServicePropertiesAreEqual(props, callDownloadServiceProperties(client));
+        if (fileServiceProperties == null) {
+            callUploadServiceProps(client, properties, null);
+            assertServicePropertiesAreEqual(properties, callDownloadServiceProperties(client));
+        } else {
+            CloudFileClient fileClient = ((CloudFileClient) client);
+            fileClient.uploadServiceProperties(fileServiceProperties);
+            Thread.sleep(30000);
+            assertFileServicePropertiesAreEqual(fileServiceProperties, fileClient.downloadServiceProperties());
+        }
     }
 
     /**
      * Checks two ServiceProperties for equality
-     * 
-     * @param propsA
-     * @param propsB
      */
     private static void assertServicePropertiesAreEqual(ServiceProperties propsA, ServiceProperties propsB) {
+        if (propsA == null && propsB == null) {
+            return;
+        } else {
+            assertNotNull(propsA);
+            assertNotNull(propsB);
+        }
+        
         if (propsA.getLogging() != null && propsB.getLogging() != null) {
             assertTrue(propsA.getLogging().getLogOperationTypes().equals(propsB.getLogging().getLogOperationTypes()));
             assertEquals(propsA.getLogging().getRetentionIntervalInDays(), propsB.getLogging()
@@ -907,6 +973,50 @@ public class ServicePropertiesTests {
         else {
             assertNull(propsA.getCors());
             assertNull(propsB.getCors());
+        }
+    }
+    
+    /**
+     * Checks the CORS rules of two <code>FileServiceProperties</code> objects to ensure they match.
+     * 
+     * @param original
+     *          The <code>FileServiceProperties</code> used as a point of comparison
+     * @param target
+     *          The generated <code>FileServiceProperties</code>, which should match the original
+     */
+    private static void assertFileServicePropertiesAreEqual(FileServiceProperties original, FileServiceProperties target) {
+        if (original == null && target == null) {
+            return;
+        } else {
+            assertNotNull(original);
+            assertNotNull(target);
+        }
+        
+        if (original.getCors() != null && target.getCors() != null) {
+            assertEquals(original.getCors().getCorsRules().size(), target.getCors().getCorsRules().size());
+
+            // Check that rules are equal and in the same order.
+            for (int i = 0; i < original.getCors().getCorsRules().size(); i++) {
+                CorsRule ruleOriginal = original.getCors().getCorsRules().get(i);
+                CorsRule ruleTarget = target.getCors().getCorsRules().get(i);
+
+                assertTrue(ruleOriginal.getAllowedOrigins().size() == ruleTarget.getAllowedOrigins().size());
+                assertTrue(ruleOriginal.getAllowedOrigins().containsAll(ruleTarget.getAllowedOrigins()));
+
+                assertTrue(ruleOriginal.getExposedHeaders().size() == ruleTarget.getExposedHeaders().size());
+                assertTrue(ruleOriginal.getExposedHeaders().containsAll(ruleTarget.getExposedHeaders()));
+
+                assertTrue(ruleOriginal.getAllowedHeaders().size() == ruleTarget.getAllowedHeaders().size());
+                assertTrue(ruleOriginal.getAllowedHeaders().containsAll(ruleTarget.getAllowedHeaders()));
+
+                assertTrue(ruleOriginal.getAllowedMethods().equals(ruleTarget.getAllowedMethods()));
+
+                assertTrue(ruleOriginal.getMaxAgeInSeconds() == ruleTarget.getMaxAgeInSeconds());
+            }
+        }
+        else {
+            assertNull(original.getCors());
+            assertNull(target.getCors());
         }
     }
 }

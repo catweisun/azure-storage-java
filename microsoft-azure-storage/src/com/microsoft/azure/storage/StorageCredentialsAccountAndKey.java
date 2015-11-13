@@ -15,8 +15,15 @@
 package com.microsoft.azure.storage;
 
 import java.net.URI;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import com.microsoft.azure.storage.core.Base64;
+import com.microsoft.azure.storage.core.SR;
+import com.microsoft.azure.storage.core.Utility;
 
 /**
  * Represents storage account credentials, based on storage account and access key, for accessing the Microsoft Azure
@@ -25,9 +32,19 @@ import com.microsoft.azure.storage.core.Base64;
 public final class StorageCredentialsAccountAndKey extends StorageCredentials {
 
     /**
-     * The internal Credentials associated with the StorageCredentials.
+     * Stores the Account name for the credentials.
      */
-    private Credentials credentials;
+    private String accountName;
+
+    /**
+     * Stores a reference to the hmacsha256 Mac.
+     */
+    private Mac hmacSha256;
+
+    /**
+     * Stores the key.
+     */
+    private byte[] key;
 
     /**
      * Creates an instance of the <code>StorageCredentialsAccountAndKey</code> class, using the specified storage
@@ -39,7 +56,16 @@ public final class StorageCredentialsAccountAndKey extends StorageCredentials {
      *            An array of bytes that represent the account access key.
      */
     public StorageCredentialsAccountAndKey(final String accountName, final byte[] key) {
-        this.credentials = new Credentials(accountName, key);
+        if (Utility.isNullOrEmptyOrWhitespace(accountName)) {
+            throw new IllegalArgumentException(SR.INVALID_ACCOUNT_NAME);
+        }
+
+        if (key == null || key.length == 0) {
+            throw new IllegalArgumentException(SR.INVALID_KEY);
+        }
+
+        this.accountName = accountName;
+        this.key = key;
     }
 
     /**
@@ -56,41 +82,67 @@ public final class StorageCredentialsAccountAndKey extends StorageCredentials {
     }
 
     /**
-     * Returns the associated account name for the credentials.
+     * Gets the account name.
      * 
-     * @return A <code>String</code> that contains the account name for the credentials.
+     * @return A <code>String</code> that contains the account name.
      */
     @Override
     public String getAccountName() {
-        return this.credentials.getAccountName();
+        return this.accountName;
     }
-
+    
     /**
-     * Gets the name of the key used by these credentials.
-     */
-    public String getAccountKeyName() {
-        return this.credentials.getKeyName();
-    }
-
-    /**
-     * Returns the internal credentials associated with the storage credentials.
+     * Exports the value of the access key to a Base64-encoded string.
      * 
-     * @return A <code>Credentials</code> object that contains the internal credentials associated with this instance of
-     *         the <code>StorageCredentialsAccountAndKey</code> class.
+     * @return A <code>String</code> that represents the Base64-encoded access key.
      */
-    public Credentials getCredentials() {
-        return this.credentials;
+    public String exportBase64EncodedKey() {
+        return Base64.encode(this.key);
     }
 
     /**
-     * Sets the credentials.
+     * Exports the value of the access key to an array of bytes.
      * 
-     * @param credentials
-     *            A <code>Credentials</code> object that represents the credentials to set for this instance of the
-     *            <code>StorageCredentialsAccountAndKey</code> class.
+     * @return A byte array that represents the access key.
      */
-    public void setCredentials(final Credentials credentials) {
-        this.credentials = credentials;
+    public byte[] exportKey() {
+        final byte[] copy = this.key.clone();
+        return copy;
+    }
+    
+    /**
+     * Sets the account name.
+     * 
+     * @param accountName
+     *          A <code>String</code> that contains the account name.
+     */
+    public void setAccountName(String accountName) {
+        this.accountName = accountName;
+    }
+    
+    /**
+     * Sets the name of the access key to be used when signing the request.
+     * 
+     * @param key
+     *        A <code>String</code> that represents the name of the access key to be used when signing the request.
+     */
+    public synchronized void updateKey(final String key) {
+        this.updateKey(Base64.decode(key));
+    }
+    
+    /**
+     * Sets the name of the access key to be used when signing the request.
+     * 
+     * @param key
+     *        A <code>String</code> that represents the name of the access key to be used when signing the request.
+     */
+    public synchronized void updateKey(final byte[] key) {
+        if (key == null || key.length == 0) {
+            throw new IllegalArgumentException(SR.INVALID_KEY);
+        }
+
+        this.key = key;
+        this.hmacSha256 = null;
     }
 
     /**
@@ -104,7 +156,7 @@ public final class StorageCredentialsAccountAndKey extends StorageCredentials {
     @Override
     public String toString(final boolean exportSecrets) {
         return String.format("%s=%s;%s=%s", CloudStorageAccount.ACCOUNT_NAME_NAME, this.getAccountName(),
-                CloudStorageAccount.ACCOUNT_KEY_NAME, exportSecrets ? this.credentials.getKey().getBase64EncodedKey()
+                CloudStorageAccount.ACCOUNT_KEY_NAME, exportSecrets ? this.exportBase64EncodedKey()
                         : "[key hidden]");
     }
 
@@ -116,5 +168,27 @@ public final class StorageCredentialsAccountAndKey extends StorageCredentials {
     @Override
     public StorageUri transformUri(StorageUri resourceUri, OperationContext opContext) {
         return resourceUri;
+    }
+    
+    /**
+     * Gets the HmacSha256 associated with the account key.
+     * 
+     * @return A <code>MAC</code> created with the account key.
+     * 
+     * @throws InvalidKeyException
+     *             If the key is not a valid storage key.
+     */
+    public synchronized Mac getHmac256() throws InvalidKeyException {
+        if (this.hmacSha256 == null) {
+            // Initializes the HMAC-SHA256 Mac and SecretKey.
+            try {
+                this.hmacSha256 = Mac.getInstance("HmacSHA256");
+            }
+            catch (final NoSuchAlgorithmException e) {
+                throw new IllegalArgumentException();
+            }
+            this.hmacSha256.init(new SecretKeySpec(this.key, "HmacSHA256"));
+        }
+        return this.hmacSha256;
     }
 }
